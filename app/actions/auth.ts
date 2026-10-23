@@ -7,7 +7,18 @@ import { str } from "./util";
 export async function signIn(form: FormData) {
   const sb = await supabaseServer();
   const { error } = await sb.auth.signInWithPassword({ email: str(form, "email"), password: String(form.get("password") ?? "") });
-  if (error) redirect(`/login?err=${encodeURIComponent("الإيميل ولا كلمة السر غالطين، ولا الحساب مبلوكي")}`);
+  if (error) {
+    // نسجلو السبب بلا كلمة السر، ونعطيو رسالة واضحة
+    console.error("sign-in failed:", error.code ?? error.status, error.message);
+    const msg = error.code === "email_not_confirmed"
+      ? "الإيميل مازال ما تأكدش. في Supabase اخلق المستعمل من جديد وعلم على Auto Confirm User."
+      : error.code === "user_banned"
+        ? "الحساب هذا مبلوكي. كلم المدير."
+        : error.code === "invalid_credentials"
+          ? "الإيميل ولا كلمة السر غالطين."
+          : `ما قدرناش ندخلو (${error.code ?? error.status ?? "?"}).`;
+    redirect(`/login?err=${encodeURIComponent(msg)}`);
+  }
   const me = await getMe();
   if (!me || me.locked) {
     await sb.auth.signOut();
