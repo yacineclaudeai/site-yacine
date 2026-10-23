@@ -1,7 +1,11 @@
-# Netlify يتعرف على Next.js وحدو (OpenNext adapter). المفاتيح تتحط في Site configuration > Environment variables.
+# Netlify يتعرف على Next.js وحدو (OpenNext adapter).
 [build]
   command = "npm run build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
+  # هاذو عموميين (يبانو في المتصفح لكل واحد)، عادي يكونو هنا.
+  # المفتاح السري SUPABASE_SERVICE_ROLE_KEY يبقى في Netlify > Environment variables برك.
+  NEXT_PUBLIC_SUPABASE_URL = "https://kbutnnblkbbwwpyttfkm.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_kvZSSTnG6wAAaOQchL-i0w_MN6LBEHP"
