@@ -169,3 +169,29 @@ export async function reverseLedger(form: FormData) {
   revalidatePath("/manager", "layout");
   back(P, "ok", "تلغات الحركة");
 }
+
+// ---------- شركات التوصيل ----------
+// المفتاح يروح مباشرة لـVault (مشفر). ما يتسجلش، ما يرجعش للمتصفح، والصفحة تبين غير آخر 4 حروف.
+export async function saveDelivery(form: FormData) {
+  await requireRole("manager");
+  const P = "/manager/delivery", id = str(form, "id");
+  const company = str(form, "delivery_company") || null, account = str(form, "delivery_account") || null;
+  const sb = await supabaseServer();
+  const { error } = await sb.from("branches").update({ delivery_company: company, delivery_account: account }).eq("id", id);
+  if (error) back(P, "err", dbError(error));
+  const { error: kErr } = await sb.rpc("set_delivery_key", {
+    p_branch: id, p_url: str(form, "api_url"), p_key: String(form.get("api_key") ?? ""),
+  });
+  if (kErr) back(P, "err", dbError(kErr));
+  revalidatePath("/manager", "layout");
+  back(P, "ok", "تحفظت شركة التوصيل.");
+}
+
+export async function clearDeliveryKey(form: FormData) {
+  await requireRole("manager");
+  const sb = await supabaseServer();
+  const { error } = await sb.rpc("clear_delivery_key", { p_branch: str(form, "id") });
+  if (error) back("/manager/delivery", "err", dbError(error));
+  revalidatePath("/manager", "layout");
+  back("/manager/delivery", "ok", "تمسح المفتاح.");
+}
