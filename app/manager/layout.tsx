@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Tabs from "@/components/Tabs";
+import Assistant from "@/components/Assistant";
 import { requireRole } from "@/lib/auth";
 
 // نفس التبويبات ونفس الترتيب تاع النموذج
@@ -29,6 +30,7 @@ export default async function ManagerLayout({ children }: { children: React.Reac
         <Tabs items={TABS} />
         {children}
       </main>
+      <Assistant connected={!!process.env.ANTHROPIC_API_KEY} />
     </>
   );
 }
