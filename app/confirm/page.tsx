@@ -19,13 +19,19 @@ export default async function Queue({ searchParams }: { searchParams: Sp }) {
           {list.map((o) => (
             <article className="order" key={o.id}>
               <div className="o-top"><strong>{o.customer_name}</strong><StatusChip s={o.status} /></div>
-              <div className="o-meta">{o.wilaya}{o.commune ? ` · ${o.commune}` : ""}</div>
+              <div className="o-meta">{o.wilaya}{o.commune ? ` · ${o.commune}` : ""}{o.address ? ` · ${o.address}` : ""}{o.delivery_type ? ` · ${o.delivery_type}` : ""}</div>
               <div className="o-row">
                 <a className="btn sm" href={`tel:${digits(o.phone)}`}>اتصال</a>
                 <a className="btn sm" href={`https://wa.me/${wa(o.phone)}`} target="_blank" rel="noopener">واتساب</a>
                 <span className="num" dir="ltr">{o.phone}</span>
               </div>
               <div className="o-row"><b>طلب الزبونة:</b> {o.product_name} × {o.qty}</div>
+              {o.details && <div className="o-meta">التفاصيل: {o.details}</div>}
+              {(o.total_price ?? o.unit_price) != null && (
+                <div className="o-meta">السعر: <span className="num">{Number(o.total_price ?? o.unit_price).toLocaleString("fr-DZ")}</span> دج
+                  {o.delivery_price != null && <> (التوصيل <span className="num">{Number(o.delivery_price).toLocaleString("fr-DZ")}</span>)</>}</div>
+              )}
+              {o.notes && <div className="o-meta">ملاحظة: {o.notes}</div>}
               <form action={confirmOrder} style={{ display: "grid", gap: 10 }}>
                 <input type="hidden" name="id" value={o.id} />
                 <PiecesPicker catalog={catalog} defaultPid={o.product_id} qty={o.qty} mode="confirm" />

@@ -11,6 +11,8 @@ export type Order = {
   product_id: string | null; product_name: string; qty: number; status: OrderStatus;
   confirmed_by: string | null; confirmed_at: string | null; wait_seconds: number | null; send_at: string | null;
   sent_at: string | null; sent_by: string | null; created_at: string;
+  address: string | null; notes: string | null; details: string | null; delivery_type: string | null;
+  unit_price: number | null; delivery_price: number | null; discount: number | null; total_price: number | null;
   order_lines: OrderLine[];
 };
 export type CatalogRow = { product_id: string; product_name: string; price: number; variant_id: string; color: string; size: string; stock: number };
