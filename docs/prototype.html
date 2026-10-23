@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لوحة العمل · نموذج تجريبي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F8; --surface:#FFFFFF; --text:#14213D; --muted:#5B677A; --line:#DCE0E8;
+  --head:#14213D; --head-text:#FFFFFF; --accent:#F2B01E; --accent-text:#2E2200;
+  --ok:#1B7F54; --ok-bg:#E3F3EB; --warn:#8A5A00; --warn-bg:#FCEFCF; --bad:#B8322A; --bad-bg:#FBE4E2; --info-bg:#E6ECF7;
+  --radius:10px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1424; --surface:#172039; --text:#E9EDF5; --muted:#9BA7BE; --line:#2B3656;
+    --head:#0A0F1D; --head-text:#F2F4F9; --accent:#F2B01E; --accent-text:#2E2200;
+    --ok:#5CD39C; --ok-bg:#12372A; --warn:#F2C25B; --warn-bg:#3B2E0E; --bad:#FF8B82; --bad-bg:#40191A; --info-bg:#1E2B4C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1424; --surface:#172039; --text:#E9EDF5; --muted:#9BA7BE; --line:#2B3656;
+  --head:#0A0F1D; --head-text:#F2F4F9; --accent:#F2B01E; --accent-text:#2E2200;
+  --ok:#5CD39C; --ok-bg:#12372A; --warn:#F2C25B; --warn-bg:#3B2E0E; --bad:#FF8B82; --bad-bg:#40191A; --info-bg:#1E2B4C;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;font-size:16px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--head);z-index:30}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--head);color:var(--head-text)}
+.top-in{max-width:1080px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.brand{font-weight:700;font-size:18px;display:flex;align-items:center;gap:10px}
+.brand small{font-weight:500;font-size:12px;background:var(--accent);color:var(--accent-text);padding:2px 8px;border-radius:99px}
+.roles{display:flex;gap:4px;background:rgba(255,255,255,.1);padding:4px;border-radius:12px}
+.roles button{border:0;background:transparent;color:inherit;padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:500}
+.roles button[aria-pressed="true"]{background:var(--accent);color:var(--accent-text);font-weight:700}
+.demo-bar{background:var(--info-bg);font-size:14px}
+.demo-in{max-width:1080px;margin:0 auto;padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between}
+.demo-in label{display:flex;gap:8px;align-items:center;cursor:pointer}
+main{max-width:1080px;margin:0 auto;padding:18px 16px 90px}
+h2{font-size:22px;margin:0 0 4px}
+h3{font-size:17px;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:15px}
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:0 0 18px}
+.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap;border-bottom:3px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent);font-weight:700}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.panel.flat{border-radius:4px}
+.strip{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-inline-start:6px solid var(--accent);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+.strip b{font-size:19px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:9px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;min-height:42px}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,.tabs button:focus-visible,.roles button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.bad{color:var(--bad)}
+.btn.sm{padding:5px 10px;min-height:34px;font-size:14px}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;background:var(--info-bg)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
+.order{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:grid;gap:10px}
+.o-top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.o-top strong{font-size:17px}
+.o-meta{color:var(--muted);font-size:15px}
+.o-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+select,input[type=number],input[type=text]{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px;max-width:100%}
+input[type=number]{width:90px}
+label.f{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:9px 8px;text-align:start;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;color:var(--muted);font-size:13px}
+.scroll{overflow-x:auto}
+.ring{width:46px;height:46px;flex:none;position:relative}
+.ring svg{width:46px;height:46px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:5}
+.ring .bg{stroke:var(--line)} .ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.ring span{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:700}
+.wait-item{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.wait-item:last-child{border-bottom:0}
+.vchips{display:flex;flex-wrap:wrap;gap:6px}
+.v{padding:2px 9px;border-radius:6px;background:var(--bg);border:1px solid var(--line);font-size:13px}
+.v.zero{background:var(--bad-bg);color:var(--bad);border-color:transparent;font-weight:700}
+.v.low{background:var(--warn-bg);color:var(--warn);border-color:transparent;font-weight:700}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.kv:last-child{border-bottom:0}
+.big{font-size:24px;font-weight:700}
+.note{background:var(--info-bg);border-radius:8px;padding:10px 12px;font-size:14px}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.toast{position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:460px;margin-inline:auto;background:var(--head);color:var(--head-text);padding:12px 16px;border-radius:10px;z-index:40;font-weight:500}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);padding:8px;font:inherit}
+.fab{position:fixed;inset-inline-end:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:35;border:0;background:var(--accent);color:var(--accent-text);font-weight:700;padding:12px 18px;border-radius:99px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.fab[hidden]{display:none}
+.aipanel{position:fixed;inset-inline-end:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));width:min(420px,calc(100% - 32px));max-height:68vh;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px;z-index:36;box-shadow:0 8px 28px rgba(0,0,0,.3)}
+.aipanel[hidden]{display:none}
+.ai-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ai-log{padding:12px 14px;overflow:auto;display:grid;gap:8px;flex:1;min-height:120px;align-content:start}
+.ai-m{padding:8px 12px;border-radius:10px;background:var(--bg);white-space:pre-wrap}
+.ai-m.me{background:var(--info-bg)}
+.ai-in{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.ai-in input{flex:1;min-width:0}
+@media (prefers-reduced-motion: reduce){.ring .fg{transition:none}}
+@media (max-width:560px){main{padding-inline:12px}.btn{flex:1 1 auto;justify-content:center}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div class="brand">لوحة العمل <small>نموذج تجريبي</small></div>
+  <div class="roles" role="group" aria-label="الدور">
+    <button data-act="role" data-role="mgr">المدير</button>
+    <button data-act="role" data-role="conf">المؤكدة</button>
+    <button data-act="role" data-role="br">الفرع</button>
+    <button data-act="role" data-role="sv">السويفي</button>
+  </div>
+</div></header>
+<div class="demo-bar"><div class="demo-in">
+  <span>كل البيانات هنا وهمية، وما تتحفظش بعد ما تسد الصفحة.</span>
+  <label><input type="checkbox" id="speed" checked> انتظار سريع للعرض (20 ثانية بدل 10 دقائق)</label>
+</div></div>
+<main id="app"></main>
+<button id="ai-fab" class="fab" data-act="aitoggle" hidden>المساعد</button>
+<aside id="ai" class="aipanel" hidden aria-label="المساعد">
+  <div class="ai-head"><b>المساعد</b><span class="o-row"><button class="btn sm" data-act="ainew">محادثة جديدة</button><button class="btn sm" data-act="aitoggle">سد</button></span></div>
+  <div id="ai-log" class="ai-log"></div>
+  <div class="ai-in"><input type="text" id="ai-text" placeholder="مثلا: بيجامة قطيفة عطيها للمؤكدة ب" aria-label="رسالتك"><button class="btn pri" data-act="aisend">ابعث</button></div>
+</aside>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+"use strict";
+/* ---------- بيانات تجريبية ---------- */
+const WAIT_REAL = 10*60*1000;
+const MIN = 60*1000;
+const BRANCHES = [
+  {id:"b1", type:"half", name:"بومرداس · Boutique Bouchra", dc:"HHD Express (Ecotrack) · Boumerdes", liq:180000},
+  {id:"b2", type:"salary", name:"براقي 1 · Boutique YACINE", dc:"HHD Express (Ecotrack) · Baraki · yacinehhdbaraki", liq:60000},
+  {id:"b3", type:"half", name:"معسكر · BOUTIQUE DZYRIA", dc:"HHD Express (Ecotrack) · Mascara", liq:0},
+  {id:"b4", type:"half", name:"حمادي 1 · Boutique YARA", dc:"My Ecom Delivery · Swakria · YARA DELIVERY", liq:95000},
+  {id:"b5", type:"half", name:"حمادي 2 · Boutique YALIM", dc:"My Ecom Delivery · Swakria · YALIM delivery", liq:0},
+  {id:"b6", type:"half", name:"براقي 2 · Boutique YAMIR", dc:"My Ecom Delivery · Birkhadem · yamir ecom", liq:0},
+  {id:"b7", type:"salary", name:"براقي 3 · Boutique YALYN", dc:"HHD Express (Ecotrack) · Baraki", liq:0},
+  {id:"b8", type:"ads", name:"سوريكال · Boutique AZZOU", dc:"Ecotrack Packers · Ain Naadja", liq:0}
+];
+const PRODUCTS = [
+  {id:"p1", name:"بيجامة قطيفة", price:2700, branch:"b1", min:3, upd:"أمس 17:10", v:{"أحمر / M":14,"أحمر / L":1,"أخضر / M":0,"أخضر / L":12,"رمادي / L":21}},
+  {id:"p2", name:"روب سبور",     price:1500, branch:"b2", min:3, upd:"اليوم 11:40", v:{"أسود / L":9,"رمادي / M":2,"أزرق / XL":6}},
+  {id:"p3", name:"طقم أطفال",    price:2200, branch:"b3", min:3, upd:"أول أمس 16:00", v:{"أحمر / 4 سنوات":0,"أخضر / 6 سنوات":0}},
+  {id:"p4", name:"جبة قطيفة",    price:2900, branch:"b4", min:3, upd:"اليوم 09:15", v:{"رمادي / M":7,"زيتي / M":5,"بني / L":4}}
+];
+const CONFIRMERS = [
+  {name:"مؤكدة أ", base:112, email:"a@example.com", phone:"0550 00 01 01", joined:"2026-08-05"},
+  {name:"مؤكدة ب", base:87,  email:"b@example.com", phone:"0550 00 01 02", joined:"2026-09-12"},
+  {name:"مؤكدة ج", base:64,  email:"c@example.com", phone:"0550 00 01 03", joined:"2026-10-01"}
+];
+const ASSIGN = {p1:"مؤكدة أ", p2:"مؤكدة ب", p3:"مؤكدة ج", p4:"مؤكدة أ"};
+const PAY_PER_CONFIRM = 50;
+const ORDERS = [
+  {id:1, name:"زبون تجريبي 1", phone:"0550 00 00 01", wilaya:"بومرداس", commune:"بودواو", pid:"p1", var:"", qty:1, status:"new"},
+  {id:2, name:"زبون تجريبي 2", phone:"0550 00 00 02", wilaya:"الجزائر", commune:"براقي", pid:"p2", var:"", qty:2, status:"new"},
+  {id:3, name:"زبون تجريبي 3", phone:"0550 00 00 03", wilaya:"معسكر", commune:"سيق", pid:"p3", var:"", qty:1, status:"new"},
+  {id:4, name:"زبون تجريبي 4", phone:"0550 00 00 04", wilaya:"تيبازة", commune:"القليعة", pid:"p4", var:"", qty:1, status:"failed1"},
+  {id:5, name:"زبون تجريبي 5", phone:"0550 00 00 05", wilaya:"وهران", commune:"السانية", pid:"p1", var:"", qty:1, status:"postponed"},
+  {id:6, name:"زبون تجريبي 6", phone:"0550 00 00 06", wilaya:"البليدة", commune:"بوفاريك", pid:"p4", var:"", qty:2, status:"new"},
+  {id:7, name:"زبون تجريبي 7", phone:"0550 00 00 07", wilaya:"الجزائر", commune:"الرويبة", pid:"p2", var:"أسود / L", qty:1, status:"wait", by:"مؤكدة أ", total:WAIT_REAL, sendAt:Date.now()+6*MIN},
+  {id:8, name:"زبون تجريبي 8", phone:"0550 00 00 08", wilaya:"بومرداس", commune:"برج منايل", pid:"p1", var:"أخضر / L", qty:1, status:"wait", by:"مؤكدة ب", total:WAIT_REAL, sendAt:Date.now()+9*MIN},
+  {id:9, name:"زبون تجريبي 9", phone:"0550 00 00 09", wilaya:"الجزائر", commune:"باش جراح", pid:"p4", var:"زيتي / M", qty:1, status:"sent", by:"مؤكدة أ", sentBy:"تلقائي", tracking:"ECO-482913", sentAt:Date.now()-50*MIN},
+  {id:10, name:"زبون تجريبي 10", phone:"0550 00 00 10", wilaya:"المدية", commune:"البرواقية", pid:"p2", var:"رمادي / M", qty:1, status:"sent", by:"مؤكدة ج", sentBy:"المدير", tracking:"ECO-482877", sentAt:Date.now()-95*MIN},
+  {id:11, name:"زبون متروك 1", phone:"0550 00 00 11", wilaya:"الجزائر", commune:"الحراش", pid:"p1", var:"", qty:1, status:"new", kind:"abandoned"},
+  {id:12, name:"زبون متروك 2", phone:"0550 00 00 12", wilaya:"سطيف", commune:"العلمة", pid:"p4", var:"", qty:1, status:"new", kind:"abandoned"}
+];
+const LEDGER = [
+  {b:"b1", t:"collected", amt:420000, note:"تحصيل الأسبوع", d:"15/10"},
+  {b:"b1", t:"purchase",  amt:150000, note:"شراء بيجامة قطيفة", d:"10/10"},
+  {b:"b1", t:"sent",      amt:100000, note:"تحويل بريدي موب", d:"17/10"},
+  {b:"b1", t:"ads",       amt:60000,  note:"أدس الأسبوع", d:"14/10"},
+  {b:"b2", t:"collected", amt:130000, note:"تحصيل", d:"16/10"},
+  {b:"b2", t:"purchase",  amt:70000,  note:"شراء روب سبور", d:"12/10"},
+  {b:"b2", t:"ads",       amt:25000,  note:"أدس", d:"14/10"},
+  {b:"b4", t:"collected", amt:210000, note:"تحصيل", d:"18/10"},
+  {b:"b4", t:"purchase",  amt:80000,  note:"شراء جبة قطيفة", d:"13/10"},
+  {b:"b4", t:"ads",       amt:40000,  note:"أدس", d:"15/10"}
+];
+const RETURNS = [];
+const SET = {source:"sheet", waitMin:10, lowQty:10, bigQty:100, returnPct:50, minSample:20, retLow:25, retHigh:30};
+const CAMP = {p1:true, p2:true, p3:false, p4:false};
+const SOURCES = [
+  {id:1,name:"الطلبات الرئيسية",type:"orders",url:"",syncMin:5,on:true},
+  {id:2,name:"طلبات متروكة (abandoned checkout)",type:"abandoned",url:"",syncMin:5,on:true},
+  {id:3,name:"شيت إضافي 1",type:"orders",url:"",syncMin:5,on:false},
+  {id:4,name:"شيت إضافي 2",type:"orders",url:"",syncMin:5,on:false}
+];
+const SUIVI = [
+  {name:"سويفي بومرداس",email:"s1@example.com",phone:"0550 00 02 01",branch:"b1",joined:"2026-07-20"},
+  {name:"سويفي براقي",email:"s2@example.com",phone:"0550 00 02 02",branch:"b2",joined:"2026-09-03"}
+];
+const SUIVI_PAY = 15000;
+const FOLLOW = ["لا يرد","رايح للمكتب","تفاهم مع الليفرور","أنيلاها","غير مطابقة","مؤجلة"];
+const BLACKLIST = [{phone:"0550 00 00 06",name:"زبون تجريبي 6",reason:"أنيلاها",d:"اليوم",by:"المدير"}];
+const phoneKey = p=>String(p||"").replace(/\D/g,"").replace(/^213/,"0");
+const isBlocked = o=>BLACKLIST.some(b=>phoneKey(b.phone)===phoneKey(o.phone));
+const ACC = {
+  p1:{qty:150,parcels:118,ordersN:210,inDelP:10,buy:800,pack:20,label:5,transOO:3000,transOH:1500,retPack:20,conf:50,confN:120,retN:18,delN:96,inDel:12,sales:231000,suiviRate:50,creative:3000,other:1700,usd:0,rate:252,selling:true},
+  p2:{qty:200,parcels:112,ordersN:190,inDelP:7,buy:450,pack:20,label:5,transOO:2500,transOH:0,retPack:20,conf:50,confN:110,retN:6,delN:98,inDel:8,sales:150000,suiviRate:50,creative:0,other:1800,usd:120,rate:254,selling:true},
+  p3:{qty:60,parcels:4,ordersN:8,inDelP:0,buy:1700,pack:20,label:5,transOO:2000,transOH:0,retPack:20,conf:50,confN:4,retN:1,delN:3,inDel:0,sales:6600,suiviRate:50,creative:0,other:0,usd:0,rate:252,selling:true},
+  p4:{qty:100,parcels:62,ordersN:120,inDelP:4,buy:1300,pack:20,label:5,transOO:2500,transOH:1000,retPack:20,conf:50,confN:60,retN:10,delN:48,inDel:5,sales:120000,suiviRate:50,creative:1500,other:0,usd:300,rate:252,selling:false}
+};
+const LT = {collected:"رفد من شركة التوصيل", purchase:"خلص المورد", sent:"بعث للمدير", ads:"أدس خلصها المدير"};
+const ST = {new:["جديدة",""], failed1:["فاشلة 1","warn"], failed2:["فاشلة 2","warn"], failed3:["فاشلة 3","bad"],
+  postponed:["مؤجلة","warn"], dup:["مكررة","bad"], cancelled:["ملغاة","bad"], wait:["في الانتظار","warn"], sent:["أُرسلت","ok"], returned:["رجعت","bad"]};
+
+let SAMPLE = null; const AI = {turns:[], busy:false, ctl:null};
+const S = {role:"conf", tab:{mgr:"over", conf:"queue", br:"orders", sv:"list"}, sv:"سويفي بومرداس", ret:{pid:"",color:"",size:"",qty:1,order:""}, qty:{}, pick:{}, branch:"b1", me:"مؤكدة أ", toast:"", nextId:11};
+
+/* ---------- أدوات ---------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const fmt = n=>Number(n).toLocaleString("en-US");
+const todayISO = ()=>new Date().toISOString().slice(0,10);
+function cycleTxt(joined){
+  const j=new Date((joined||todayISO())+"T00:00:00"), t=new Date();
+  let st=new Date(t.getFullYear(),t.getMonth(),j.getDate());
+  if(st>t) st=new Date(t.getFullYear(),t.getMonth()-1,j.getDate());
+  const en=new Date(st.getFullYear(),st.getMonth()+1,j.getDate()-1);
+  const f=d=>String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+  return {a:f(st),b:f(en)};
+}
+const prod = id=>PRODUCTS.find(p=>p.id===id);
+function brIds(o){return [...new Set(((o.lines&&o.lines.length)?o.lines:[{pid:o.pid}]).map(l=>prod(l.pid).branch))]}
+const branchOf = o=>BRANCHES.find(b=>b.id===brIds(o)[0]);
+const lineTxt = l=>prod(l.pid).name+" · "+l.v;
+const linesText = o=>(o.lines||[]).map(lineTxt).join(" + ")||"-";
+const lineSelect = (o,i,l)=>"";
+const inStock = p=>Object.entries(p.v).filter(([,q])=>q>0).map(([k])=>k);
+const waitMs = ()=> $("#speed") && $("#speed").checked ? 20*1000 : SET.waitMin*60*1000;
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){S.toast=m;const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>{t.hidden=true},2600)}
+function ledgerSum(b,t){return LEDGER.filter(e=>e.b===b&&e.t===t).reduce((a,e)=>a+e.amt,0)}
+function branchDue(b){
+  const L=PRODUCTS.filter(p=>p.branch===b.id);
+  const ads=L.reduce((t,p)=>t+ACC[p.id].usd*ACC[p.id].rate,0);
+  const profit=L.reduce((t,p)=>t+calcAcc(ACC[p.id]).profit,0);
+  const share=b.type==="half"?profit/2:0;
+  const owed=Math.round(ads+share), sent=ledgerSum(b.id,"sent");
+  return {ads:Math.round(ads),profit:Math.round(profit),share:Math.round(share),owed,sent,left:owed-sent};
+}
+function dueHtml(b){
+  const d=branchDue(b);
+  return `<div style="margin:10px 0;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
+    <label class="f" style="margin-bottom:8px">نوع الفرع<select data-chg="brtype" data-id="${b.id}"><option value="half" ${b.type==="half"?"selected":""}>50/50</option><option value="salary" ${b.type==="salary"?"selected":""}>شهرية (يرجع الأدس غير)</option><option value="ads" ${b.type==="ads"?"selected":""}>أدس فقط (بلا أجر)</option></select></label>
+    <div class="kv"><span>أدس المنتجات</span><b class="num">${fmt(d.ads)}</b></div>
+    <div class="kv"><span>فايدة المنتجات</span><b class="num">${fmt(d.profit)}</b></div>
+    <div class="kv"><span>حصتك من الفايدة</span><b class="num">${fmt(d.share)}</b></div>
+    <div class="kv"><span>المفروض يرجعلك (أدس + حصتك)</span><b class="num">${fmt(d.owed)}</b></div>
+    <div class="kv"><span>بعثلك</span><b class="num">${fmt(d.sent)}</b></div>
+    <div class="kv"><span>الباقي عليه</span><b class="big num" style="color:var(--${d.left>0?"bad":"ok"})">${fmt(d.left)} دج</b></div>
+    <div class="o-meta" style="margin-top:6px">الأدس يرجعها الفرع دايما. في 50/50 الفرع يتحمل نص الفايدة ونص الخسارة. في الشهرية وأدس فقط، يرجع الأدس غير. ما كاين تذكير أوتوماتيك، أنت تطلب منو يبعث وقت ما تحب.</div>
+    <div class="actions" style="margin-top:8px"><button class="btn sm" data-act="brmsg" data-b="${b.id}">رسالة طلب التحويل</button></div></div>`;
+}
+function held(b){return ledgerSum(b,"collected")-ledgerSum(b,"purchase")-ledgerSum(b,"sent")}
+function confirmedCount(name){return CONFIRMERS.find(c=>c.name===name).base + ORDERS.filter(o=>o.by===name&&(o.status==="wait"||o.status==="sent")).length}
+function stockAlerts(){
+  const a=[];
+  PRODUCTS.forEach(p=>Object.entries(p.v).forEach(([k,q])=>{ if(q<=p.min) a.push({p,k,q}); }));
+  return a.sort((x,y)=>x.q-y.q);
+}
+function calcAcc(a){
+  const sent=a.parcels;
+  const rows=[["الشراء (الدفعة كاملة)",a.qty*a.buy],["التغليف",a.pack*sent],["الإتيكات",a.label*sent],["تغليف الرتور",a.retPack*a.retN],["التأكيد (مع الراجعة)",a.conf*a.confN],["السويفي (لكل طلبية متسلمة)",a.suiviRate*Math.max(0,a.parcels-a.retN-a.inDelP)],["الكرياتيف",a.creative],["مصاريف أخرى",a.other],["الأدس",a.usd*a.rate]];
+  const exp=rows.reduce((t,r)=>t+r[1],0), profit=a.sales-exp, left=Math.max(0,a.qty-a.delN-a.inDel);
+  const state=profit>=0?["ربح","ok"]:(a.selling?["قيد البيع","warn"]:["خسارة","bad"]);
+  return {rows,exp,profit,left,state};
+}
+function rates(pid){
+  const a=ACC[pid];
+  const delivered=Math.max(0,a.parcels-a.retN-a.inDelP), closed=delivered+a.retN;
+  const conf=a.ordersN?a.confN/a.ordersN:null;
+  const ret=closed?a.retN/closed:null;
+  const trust=closed>=SET.minSample&&ret!==null;
+  return {delivered,closed,conf,ret,trust,retUsed:trust?ret:SET.returnPct/100};
+}
+function retBand(x){
+  if(x===null||x===undefined) return null;
+  const v=x*100;
+  return v<SET.retLow?["منخفض","ok"]:v<=SET.retHigh?["عادي",""]:["مرتفع","bad"];
+}
+function statsHtml(){
+  const rows=[["orders","عادية"],["abandoned","متروكة"]].map(([k,l])=>{
+    const L=ORDERS.filter(o=>(o.kind||"orders")===k);
+    const conf=L.filter(o=>["wait","sent","returned"].includes(o.status)).length;
+    const sent=L.filter(o=>o.status==="sent").length, ret=L.filter(o=>o.status==="returned").length;
+    const rate=L.length?Math.round(conf*100/L.length)+"%":"-";
+    return `<tr><td>${l}</td><td class="num">${L.length}</td><td class="num">${conf}</td><td class="num">${rate}</td><td class="num">${sent}</td><td class="num">${ret}</td></tr>`}).join("");
+  return `<section class="panel" style="margin-bottom:14px"><h3>عادية ومتروكة</h3><div class="scroll"><table><thead><tr><th>النوع</th><th>الطلبات</th><th>المؤكدة</th><th>نسبة التأكيد</th><th>في التوصيل</th><th>الراجعة</th></tr></thead><tbody>${rows}</tbody></table></div><p class="sub" style="margin:8px 0 0">التسليم النهائي يجي من شركة التوصيل أوتوماتيك. المؤكدات ما يشوفوش هذا الفرق.</p></section>`;
+}
+function sendOrder(o,by){
+  o.status="sent"; o.sentAt=Date.now(); o.sentBy=by||"تلقائي";
+  o.tracks={}; brIds(o).forEach(b=>{o.tracks[b]="ECO-"+Math.floor(480000+Math.random()*9999)});
+  o.tracking=Object.values(o.tracks)[0];
+}
+
+ORDERS.forEach(o=>{
+  if(!o.lines&&o.var) o.lines=String(o.var).split(" + ").map(v=>({pid:o.pid,v}));
+  if(o.tracking&&!o.tracks) o.tracks={[prod(o.pid).branch]:o.tracking};
+});
+/* ---------- واجهة: المؤكدة ---------- */
+function statusChip(s){const [l,c]=ST[s];return `<span class="chip ${c}">${l}</span>`}
+function orderCard(o){
+  const avail=PRODUCTS.filter(p=>!p.pending&&inStock(p).length);
+  const q=S.qty[o.id]||o.qty||1;
+  const pick=S.pick[o.id]||[];
+  const chosen=Array.from({length:q},(_,i)=>{
+    const pk=pick[i]||{};
+    const pid=avail.some(x=>x.id===pk.pid)?pk.pid:(avail.some(x=>x.id===o.pid)?o.pid:(avail[0]&&avail[0].id));
+    const vs=pid?inStock(prod(pid)):[];
+    return {pid,vs,v:vs.includes(pk.v)?pk.v:vs[0]};
+  });
+  const total=chosen.reduce((t,c)=>t+(c.pid?prod(c.pid).price:0),0);
+  const qopts=Array.from({length:10},(_,i)=>i+1).map(n=>`<option ${n===q?"selected":""}>${n}</option>`).join("");
+  const pieces=chosen.map((c,i)=>`<div class="o-row"><label class="f">القطعة ${i+1}: المنتج<select data-chg="opid" data-id="${o.id}" data-i="${i}">${avail.map(x=>`<option value="${x.id}" ${x.id===c.pid?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
+    <label class="f">اللون والمقاس<select data-chg="opick" data-id="${o.id}" data-i="${i}" data-p="${c.pid}">${c.vs.map(v=>`<option ${v===c.v?"selected":""}>${esc(v)}</option>`).join("")}</select></label></div>`).join("");
+  return `<article class="order">
+    <div class="o-top"><strong>${esc(o.name)}</strong>${statusChip(o.status)}</div>
+    <div class="o-meta">${esc(o.wilaya)} · ${esc(o.commune)}</div>
+    <div class="o-row">
+      <a class="btn sm" href="tel:${o.phone.replace(/\s/g,"")}">اتصال</a>
+      <a class="btn sm" href="https://wa.me/213${o.phone.replace(/\s/g,"").slice(1)}" target="_blank" rel="noopener">واتساب</a>
+      <span class="num">${o.phone}</span>
+    </div>
+    <div class="o-row"><b>طلب الزبونة:</b> ${esc(prod(o.pid).name)} × ${o.qty} <span class="num">المجموع ${fmt(total)} دج</span></div>
+    ${avail.length?`<label class="f">كم قطعة تاخذ الزبونة؟<select data-chg="oqty" data-id="${o.id}">${qopts}</select></label>${pieces}`
+      :`<div class="note" style="background:var(--bad-bg);color:var(--bad)">كل المنتجات خلصت. ما تقدرش تأكد.</div>`}
+    <div class="actions">
+      <button class="btn ok" data-act="confirm" data-id="${o.id}" ${avail.length?"":"disabled"}>تأكيد</button>
+      <button class="btn" data-act="noans" data-id="${o.id}">ما جاوبش</button>
+      <button class="btn" data-act="postpone" data-id="${o.id}">تأجيل</button>
+      <button class="btn" data-act="dup" data-id="${o.id}">مكررة</button>
+      <button class="btn bad" data-act="cancel" data-id="${o.id}">إلغاء</button>
+      <button class="btn bad" data-act="cblk" data-id="${o.id}">ليست نوار</button>
+    </div>
+  </article>`;
+}
+function ring(o){
+  return `<div class="ring" data-ring="${o.id}"><svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="18"/><circle class="fg" cx="23" cy="23" r="18" stroke-dasharray="113.1" stroke-dashoffset="0"/></svg><span class="num">--</span></div>`;
+}
+function waitList(forMgr){
+  const w=ORDERS.filter(o=>o.status==="wait"&&(forMgr||o.by===S.me));
+  if(!w.length) return `<div class="empty">ما كاين حتى طلبية في الانتظار.</div>`;
+  return w.map(o=>{
+    const sel=(o.lines||[]).map((l,i)=>{const pp=prod(l.pid);
+      return `<select data-chg="wpid" data-id="${o.id}" data-i="${i}" aria-label="منتج القطعة ${i+1}">${PRODUCTS.filter(x=>!x.pending).map(x=>`<option value="${x.id}" ${x.id===l.pid?"selected":""}>${esc(x.name)}</option>`).join("")}</select>`
+      +`<select data-chg="var" data-id="${o.id}" data-i="${i}" aria-label="لون القطعة ${i+1}">${Object.keys(pp.v).filter(k=>pp.v[k]>0||k===l.v).map(k=>`<option ${k===l.v?"selected":""}>${esc(k)}</option>`).join("")}</select>`}).join("")
+      +`<button class="btn sm" data-act="addpiece" data-id="${o.id}">+ قطعة</button>`+((o.lines||[]).length>1?`<button class="btn sm" data-act="rmpiece" data-id="${o.id}">− قطعة</button>`:"");
+    return `<div class="wait-item">
+      <div class="o-row">${ring(o)}<div><b>${esc(o.name)}</b><div class="o-meta">${esc(linesText(o))}${forMgr?` · أكدتها ${esc(o.by)} · ${brIds(o).map(id=>esc(BRANCHES.find(b=>b.id===id).name)).join(" + ")}`:""}</div></div></div>
+      <div class="actions">${sel}
+        <button class="btn pri" data-act="sendnow" data-id="${o.id}">ابعث الآن</button>
+        <button class="btn bad" data-act="cancelwait" data-id="${o.id}">إلغاء</button></div>
+    </div>`}).join("");
+}
+function viewConf(){
+  const tab=S.tab.conf;
+  const queue=ORDERS.filter(o=>["new","failed1","failed2","failed3","postponed"].includes(o.status)&&ASSIGN[o.pid]===S.me&&!isBlocked(o));
+  const wcount=ORDERS.filter(o=>o.status==="wait"&&o.by===S.me).length;
+  const mine=confirmedCount(S.me);
+  let body="";
+  if(tab==="queue") body = queue.length?`<div class="grid g2">${queue.map(orderCard).join("")}</div>`:`<div class="empty">خلصت كل الطلبات. بارك الله فيك.</div>`;
+  if(tab==="wait") body = `<div class="panel"><p class="sub" style="margin-bottom:6px">الطلبية تبقى هنا ${$("#speed").checked?"20 ثانية (عرض سريع)":SET.waitMin+" دقائق"} وتقدر تبدل اللون ولا تلغيها. بعدها تتبعث بروحها.</p>${waitList(false)}</div>`;
+  if(tab==="done"){const d=ORDERS.filter(o=>o.status==="sent"&&o.by===S.me);
+    body = `<div class="panel">${d.length?d.map(o=>`<div class="kv"><span>${esc(o.name)} · ${esc(prod(o.pid).name)}</span><span class="chip ok">أُرسلت</span></div>`).join(""):`<div class="empty">ما كاين حتى طلبية مرسلة.</div>`}</div>`}
+  return `<h2>مرحبا ${esc(S.me)}</h2>
+    <p class="sub">أكدت <b class="num">${mine}</b> طلبية هذا الشهر. تشوف غير طلبات المنتجات اللي وزعها عليك المدير. والفرع ما يظهرلكش.</p>
+    <div class="o-row" style="margin-bottom:12px"><label class="f" style="min-width:200px">جرب مؤكدة أخرى<select data-chg="curconf">${CONFIRMERS.map(c=>`<option ${c.name===S.me?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="${tab==="queue"}" data-act="tab" data-tab="queue">للتأكيد (${queue.length})</button>
+      <button role="tab" aria-selected="${tab==="wait"}" data-act="tab" data-tab="wait">في الانتظار (${wcount})</button>
+      <button role="tab" aria-selected="${tab==="done"}" data-act="tab" data-tab="done">المرسلة</button>
+    </div>${body}`;
+}
+
+/* ---------- واجهة: المدير ---------- */
+function vchips(p){return `<div class="vchips">${Object.entries(p.v).map(([k,q])=>`<span class="v ${q===0?"zero":q<=p.min?"low":""}">${esc(k)}: <span class="num">${q}</span></span>`).join("")}</div>`}
+function viewMgr(){
+  const tab=S.tab.mgr, w=ORDERS.filter(o=>o.status==="wait");
+  const tabs=[["over","نظرة عامة"],["orders","الطلبات"],["br","الفروع والدراهم"],["prod","المنتجات والستوك"],["qty","الكميات المتبقية"],["cost","التحليل"],["acc","محاسبة المنتج"],["dc","شركات التوصيل"],["conf","المؤكدات"],["sv","السويفي"],["bl","ليست نوار"],["set","الإعدادات"]];
+  let body="";
+  if(tab==="over"){
+    const al=stockAlerts();
+    body = pendingNote()+`<div class="strip"><div><b class="num">${w.length}</b> طلبية في الانتظار قبل الإرسال لشركة التوصيل</div>
+      <div class="actions"><button class="btn pri" data-act="sendall" ${w.length?"":"disabled"}>ابعث الكل الآن</button></div></div>
+      <div class="grid g2">
+        <section class="panel"><h3>الطلبيات في الانتظار</h3>${waitList(true)}</section>
+        <section class="panel"><h3>ألوان خلصت ولا قربت تخلص</h3>${al.length?al.map(a=>`<div class="kv"><span>${esc(a.p.name)} · ${esc(a.k)} <span class="o-meta">(${esc(BRANCHES.find(b=>b.id===a.p.branch).name)})</span></span><span class="chip ${a.q===0?"bad":"warn"} num">${a.q}</span></div>`).join(""):`<div class="empty">كل شيء مليح.</div>`}</section>
+        <section class="panel"><h3>السيولة عند الفروع</h3>${BRANCHES.map(b=>`<div class="kv"><span>${esc(b.name)}</span><b class="num">${fmt(b.liq)} دج</b></div>`).join("")}</section>
+        <section class="panel"><h3>مستحقات المؤكدات هذا الشهر</h3>${CONFIRMERS.map(c=>`<div class="kv"><span>${esc(c.name)}</span><b class="num">${fmt(confirmedCount(c.name)*PAY_PER_CONFIRM)} دج</b></div>`).join("")}</section>
+      </div>`;
+  }
+  if(tab==="orders"){
+    body=statsHtml()+`<div class="panel scroll"><table><thead><tr><th>الزبون</th><th>المنتج</th><th>اللون</th><th>الفرع وشركة التوصيل</th><th>النوع</th><th>الحالة</th><th>أكدتها</th><th>التتبع</th></tr></thead><tbody>${
+      ORDERS.map(o=>`<tr><td>${esc(o.name)}<div class="o-meta">${esc(o.wilaya)}</div></td><td>${esc(((o.lines&&o.lines.length)?[...new Set(o.lines.map(l=>prod(l.pid).name))]:[prod(o.pid).name]).join(" + "))} × ${o.qty}</td><td>${esc((o.lines&&o.lines.length)?o.lines.map(l=>l.v).join(" + "):"-")}</td><td>${brIds(o).map(id=>{const b=BRANCHES.find(x=>x.id===id);return esc(b.name)+`<div class="o-meta">${esc(b.dc)}</div>`}).join("")}</td><td>${o.kind==="abandoned"?`<span class="chip warn">متروكة</span>`:"عادية"}</td><td>${statusChip(o.status)}${isBlocked(o)?` <span class="chip bad">ليست نوار</span>`:""}</td><td>${esc(o.by||"-")}</td><td class="num">${esc(Object.values(o.tracks||{}).join(" · ")||"-")}${o.sentBy?`<div class="o-meta">أرسلها: ${esc(o.sentBy)}</div>`:""}</td></tr>`).join("")
+    }</tbody></table></div>`;
+  }
+  if(tab==="br"){
+    body=`<div class="grid g2">${BRANCHES.map(b=>`<section class="panel"><h3>${esc(b.name)}</h3>
+      <div class="kv"><span>السيولة اللي صرح بيها</span><b class="num">${fmt(b.liq)} دج</b></div>
+      <div class="kv"><span>دراهم عند الفرع</span><b class="num">${fmt(held(b.id))} دج</b></div>
+      <div class="kv"><span>أدس خلصتها من جيبك</span><b class="num">${fmt(ledgerSum(b.id,"ads"))} دج</b></div>
+      <div class="note" style="margin:10px 0">دراهم عند الفرع = اللي رفدو من شركة التوصيل − اللي خلص بيه المورد − اللي بعثهولك.</div>${dueHtml(b)}
+      <div class="scroll"><table><tbody>${LEDGER.filter(e=>e.b===b.id).map(e=>`<tr><td class="num">${e.d}</td><td>${LT[e.t]}</td><td class="num">${fmt(e.amt)}</td></tr>`).join("")||`<tr><td class="empty">ما كاين حتى عملية.</td></tr>`}</tbody></table></div>
+      <div class="o-row" style="margin-top:10px">
+        <select id="lt-${b.id}">${Object.entries(LT).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+        <input type="number" id="la-${b.id}" min="0" placeholder="المبلغ" aria-label="المبلغ">
+        <button class="btn" data-act="addledger" data-b="${b.id}">سجل</button>
+      </div></section>`).join("")}</div><div id="brbox" class="panel" style="margin-top:14px" hidden><h3>الرسالة</h3><textarea id="brtxt" readonly></textarea><div class="actions" style="margin-top:8px"><button class="btn" data-act="brcopy">انسخ</button></div></div>`;
+  }
+  if(tab==="prod"){
+    body=`<div class="panel scroll"><table><thead><tr><th>المنتج</th><th>السعر</th><th>الفرع المربوط</th><th>الستوك حسب اللون</th></tr></thead><tbody>${
+      PRODUCTS.map(p=>`<tr><td><b>${esc(p.name)}</b> ${p.pending?`<span class="chip warn">منتج جديد من الفرع</span>`:""}<div class="o-meta">آخر عد: ${p.upd}</div></td><td class="num">${p.pending?`<input type="number" min="0" id="pr-${p.id}" value="${p.price}"> <button class="btn sm pri" data-act="approve" data-id="${p.id}">اعتمد</button>`:fmt(p.price)}</td><td><select data-chg="branch" data-id="${p.id}" aria-label="الفرع">${BRANCHES.map(b=>`<option value="${b.id}" ${b.id===p.branch?"selected":""}>${esc(b.name)}</option>`).join("")}</select><div class="o-meta">${esc(BRANCHES.find(b=>b.id===p.branch).dc)}</div></td><td>${vchips(p)}</td></tr>`).join("")
+    }</tbody></table></div><p class="sub" style="margin-top:10px">كل منتج مربوط بفرع واحد. كي تتأكد الطلبية، تروح للفرع هذا وشركة التوصيل تاعو.</p>`;
+  }
+  if(tab==="acc"){
+    const F=[["qty","كمية الشراء"],["buy","سعر الشراء"],["pack","تغليف لكل كولي"],["label","إتيكات لكل كولي"],["retPack","تغليف الرتور للكولي"],["conf","سعر التأكيد"],["confN","طلبيات مؤكدة (مع الراجعة)"],["ordersN","طلبات الحملة (كلها)"],["parcels","كوليات مبعوثة"],["inDelP","كوليات في التوصيل"],["delN","قطع متسلمة"],["retN","كوليات راجعة"],["inDel","قطع في التوصيل"],["sales","مجموع النات (المبيعات)"],["suiviRate","سعر السويفي لكل طلبية متسلمة"],["creative","الكرياتيف"],["other","مصاريف أخرى (مع نقل السلعة)"],["usd","أدس بالدولار"],["rate","سعر الصرف"]];
+    body=`<div class="note" style="margin-bottom:12px">الأرقام هنا للتجربة. المبيعات والكميات تجي من شركة التوصيل، والباقي يتدخل يدويا. الفايدة = المبيعات − كل المصاريف، والقطع الباقية تتعتبر فايدة كي تكون النتيجة موجبة.</div>`+PRODUCTS.map(p=>{const a=ACC[p.id],r=calcAcc(a);
+      return `<section class="panel" style="margin-bottom:14px"><div class="o-top"><h3>${esc(p.name)} <span class="o-meta">${esc(BRANCHES.find(b=>b.id===p.branch).name)}</span></h3><span class="chip ${r.state[1]}">${r.state[0]}</span></div>
+      <div class="grid g2"><div>
+        <div class="o-row">${F.map(([k,l])=>`<label class="f">${l}<input type="number" min="0" data-chg="acc" data-id="${p.id}" data-f="${k}" value="${a[k]}"></label>`).join("")}</div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" data-chg="accsell" data-id="${p.id}" ${a.selling?"checked":""}> المنتج مازال يتباع</label>
+      </div><div>
+        <div class="kv"><span>المبيعات</span><b class="num">${fmt(a.sales)}</b></div>
+        ${r.rows.map(x=>`<div class="kv"><span>${x[0]}</span><span class="num">− ${fmt(x[1])}</span></div>`).join("")}
+        <div class="kv"><span>مجموع المصاريف</span><b class="num">${fmt(r.exp)}</b></div>
+        <div class="kv"><span>الفايدة</span><b class="big num" style="color:var(--${r.profit>=0?"ok":"bad"})">${fmt(r.profit)} دج</b></div>
+        <div class="o-meta" style="margin-top:6px">قطع باقية في الستوك: <span class="num">${r.left}</span>${r.profit>=0?" (تتعتبر فايدة)":""}</div>
+      </div></div></section>`}).join("");
+  }
+  if(tab==="qty"){
+    const sum=p=>Object.values(p.v).reduce((a,b)=>a+b,0);
+    const inDel=p=>ORDERS.filter(o=>o.status==="sent").reduce((a,o)=>a+(o.lines||[]).filter(l=>l.pid===p.id).length,0);
+    const exp=p=>Math.round(inDel(p)*rates(p.id).retUsed);
+    const rets=p=>RETURNS.filter(r=>r.p===p.name).reduce((a,r)=>a+r.q,0);
+    const hint=p=>{const n=sum(p)+exp(p),on=CAMP[p.id];
+      if(n===0) return ["خلص","bad","السلعة خلصت. وقف الحملة حتى تجيك سلعة ولا ترجع."];
+      if(on&&n<=SET.lowQty) return ["قليلة","warn","الكمية قليلة والحملة تخدم. قلل الميزانية ولا وقفها."];
+      if(!on) return ["كاينة","ok","فيها سلعة والحملة موقفة. تقدر تعاود تفتحها."];
+      if(n>=SET.bigQty) return ["كبيرة","ok","كمية كبيرة والحملة تخدم. تقدر تزيد في الميزانية."];
+      return ["عادية","","الكمية مليحة. كمل كيما راك."]};
+    body=`<div class="note" style="margin-bottom:12px">هنا تشوف السلعة اللي بقات في كل فرع، باش تقرر واش تعاود تفتح الحملة ولا تزيد فيها. الاقتراح يحسب الكمية <b>بعد الرتور المتوقع</b>، بنسبة الرتور تاع كل منتج من الواقع (وإلا ما كفاتش المعطيات، النسبة الافتراضية ${SET.returnPct}%). والقرار تاعك.</div>
+    <div class="panel scroll"><table><thead><tr><th>المنتج</th><th>الفرع</th><th>المتوفر الآن</th><th>في التوصيل</th><th>المتوقع يرجع</th><th>متاح بعد الرتور</th><th>رتور مسجل</th><th>الحملة</th><th>الوضعية</th></tr></thead><tbody>${PRODUCTS.map(p=>{const h=hint(p),r=rates(p.id);return `<tr><td><b>${esc(p.name)}</b>${vchips(p)}</td><td>${esc(BRANCHES.find(b=>b.id===p.branch).name)}</td><td class="num">${sum(p)}</td><td class="num">${inDel(p)}</td><td class="num">≈ ${exp(p)}<div class="o-meta">${Math.round(r.retUsed*100)}% ${r.trust?"(واقع)":"(افتراضي)"}</div></td><td class="big num">${sum(p)+exp(p)}</td><td class="num">${rets(p)}</td><td><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-chg="camp" data-id="${p.id}" ${CAMP[p.id]?"checked":""}> تخدم</label></td><td><span class="chip ${h[1]}">${h[0]}</span><div class="o-meta">${h[2]}</div></td></tr>`}).join("")}</tbody></table></div>
+    <section class="panel" style="margin-top:14px"><h3>مجموع كل فرع</h3>${BRANCHES.map(b=>{const L=PRODUCTS.filter(p=>p.branch===b.id);const t=L.reduce((a,p)=>a+sum(p),0), e=L.reduce((a,p)=>a+exp(p),0);return `<div class="kv"><span>${esc(b.name)}</span><span><b class="num">${t}</b> <span class="o-meta">(≈ ${t+e} بعد الرتور)</span></span></div>`}).join("")}</section>`;
+  }
+  if(tab==="cost"){
+    const d=n=>isFinite(n)&&n>0?"$"+n.toFixed(2):"-";
+    const pc=x=>x===null?"-":Math.round(x*100)+"%";
+    body=`<div class="note" style="margin-bottom:12px">كل رقم هنا يتحسب من الواقع، منتج منتج. <b>نسبة الرتور</b> = الراجع ÷ (المتسلم + الراجع). إذا الكوليات المغلقة قليلة (أقل من ${SET.minSample})، نستعمل النسبة الافتراضية ${SET.returnPct}%. والكوليات اللي مازال في التوصيل نحسبو منها نفس النسبة. ونسبة الرتور بين ${SET.retLow}% و${SET.retHigh}% تتحسب <b>عادية</b>، وتحتها منخفضة وفوقها مرتفعة.</div>
+    <div class="panel scroll"><table><thead><tr><th>المنتج</th><th>الطلبات</th><th>نسبة التأكيد</th><th>نسبة الرتور</th><th>الكوست الأولي</th><th>بعد التأكيد</th><th>النهائي (تقريبي)</th><th>فايدة الآن</th><th>فايدة بعد التسليم المتوقع</th></tr></thead><tbody>${PRODUCTS.map(p=>{
+      const a=ACC[p.id], r=rates(p.id), c=calcAcc(a), bd=retBand(r.ret);
+      const approx=r.delivered+a.inDelP*(1-r.retUsed);
+      const avg=r.delivered?a.sales/r.delivered:0;
+      const extra=Math.round(a.inDelP*(1-r.retUsed)*avg);
+      return `<tr><td><b>${esc(p.name)}</b></td><td class="num">${a.ordersN}</td><td class="num">${pc(r.conf)}</td><td class="num">${pc(r.ret)} ${bd?`<span class="chip ${bd[1]}">${bd[0]}</span>`:""}<div class="o-meta">${r.trust?"من الواقع":"افتراضية "+SET.returnPct+"%"} · ${r.closed} مغلقة</div></td><td class="num">${d(a.usd/a.ordersN)}</td><td class="num">${d(a.usd/a.confN)}</td><td class="num"><b>${d(a.usd/approx)}</b></td><td class="num" style="color:var(--${c.profit>=0?"ok":"bad"})">${fmt(c.profit)}</td><td class="num"><b>${fmt(c.profit+extra)}</b></td></tr>`}).join("")}</tbody></table></div>
+    <p class="sub" style="margin-top:10px">"فايدة بعد التسليم المتوقع" = الفايدة الحالية + (الكوليات اللي في التوصيل × نسبة التسليم × متوسط البيع للكولي). رقم تقريبي للقرار، ماشي حساب نهائي. الأرقام تتعدل في تبويب "محاسبة المنتج".</p>`;
+  }
+    if(tab==="bl"){
+    body=`<section class="panel" style="margin-bottom:14px"><h3>زيد رقم في ليست نوار</h3><div class="o-row">
+      <label class="f">الهاتف<input type="text" id="bl-phone" dir="ltr" inputmode="tel"></label>
+      <label class="f">الاسم (اختياري)<input type="text" id="bl-name"></label>
+      <label class="f">السبب<select id="bl-reason">${FOLLOW.map(f=>`<option>${esc(f)}</option>`).join("")}</select></label>
+      <button class="btn pri" data-act="addbl">زيد</button></div>
+      <div class="note" style="margin-top:10px">أي رقم هنا ما يقدرش يدير طلب جديد. النظام ما يمررهوش لا للمؤكدات ولا للسويفي. الحذف للمدير وحدو. وفي الموقع الحقيقي القائمة تتحفظ دايما.</div></section>
+      <div class="panel scroll"><table><thead><tr><th>الهاتف</th><th>الاسم</th><th>السبب</th><th>التاريخ</th><th>أضافو</th><th></th></tr></thead><tbody>${BLACKLIST.map((b,i)=>`<tr><td class="num">${esc(b.phone)}</td><td>${esc(b.name||"-")}</td><td>${esc(b.reason)}</td><td>${esc(b.d)}</td><td>${esc(b.by)}</td><td><button class="btn sm" data-act="delbl" data-i="${i}">حذف</button></td></tr>`).join("")||`<tr><td colspan="6" class="empty">القائمة فارغة.</td></tr>`}</tbody></table></div>`;
+  }
+  if(tab==="sv"){
+    body=`<section class="panel" style="margin-bottom:14px"><h3>زيد سويفي <span class="o-meta">(عندك ${SUIVI.length})</span></h3><div class="o-row">
+      <label class="f">الاسم<input type="text" id="sv-name"></label>
+      <label class="f">الإيميل<input type="text" id="sv-mail" dir="ltr"></label>
+      <label class="f">الهاتف<input type="text" id="sv-phone" dir="ltr"></label>
+      <label class="f">تاريخ الدخول<input type="date" id="sv-date"></label>
+      <label class="f">الفرع<select id="sv-br">${BRANCHES.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select></label>
+      <button class="btn pri" data-act="addsv">زيد سويفي</button></div></section>
+      <div class="panel scroll"><table><thead><tr><th>السويفي</th><th>الإيميل</th><th>الهاتف</th><th>تاريخ الدخول</th><th>الفرع وشركة التوصيل</th><th>الشهرية</th></tr></thead><tbody>${SUIVI.map(x=>{const b=BRANCHES.find(y=>y.id===x.branch);return `<tr><td>${esc(x.name)}</td><td class="num">${esc(x.email)}</td><td class="num">${esc(x.phone)}</td><td class="num">${esc(x.joined||"-")}</td><td>${esc(b.name)}<div class="o-meta">${esc(b.dc)}</div></td><td class="num">${fmt(SUIVI_PAY)} دج</td></tr>`}).join("")}</tbody></table></div>
+      <div class="kv" style="margin-top:12px"><span>مجموع الشهريات</span><b class="num">${fmt(SUIVI.length*SUIVI_PAY)} دج</b></div>
+      <p class="sub" style="margin-top:8px">السويفي يتخلص شهرية ثابتة، ماشي بالطلبية. وكل سويفي يشوف غير كوليات شركة التوصيل تاع فرعو.</p>`;
+  }
+  if(tab==="set"){
+    body=`<section class="panel" style="margin-bottom:14px"><h3>مصدر الطلبات</h3>
+      <div class="o-row" style="margin-bottom:10px">
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="radio" name="src" data-chg="src" value="sheet" ${SET.source==="sheet"?"checked":""}> نقرا الطلبات من شيتات جوجل</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="radio" name="src" data-chg="src" value="direct" ${SET.source==="direct"?"checked":""}> بلا شيت (الطلبات تدخل مباشرة)</label></div>
+      ${SET.source==="sheet"?`<div class="note" style="margin-bottom:12px">زيد قدما تحب من الشيتات. كل شيت عندو نوع: طلبات عادية، ولا طلبات متروكة (abandoned checkout) اللي تدخل لقائمة المؤكدات مع الباقي. المؤكدة ما تعرفش أنها متروكة، وأنت وحدك تشوف النوع.</div>
+        ${SOURCES.map(x=>`<div class="wait-item"><div class="o-row" style="flex:1;min-width:260px">
+          <label class="f" style="min-width:150px">الاسم<input type="text" data-chg="srcf" data-id="${x.id}" data-f="name" value="${esc(x.name)}"></label>
+          <label class="f">النوع<select data-chg="srcf" data-id="${x.id}" data-f="type"><option value="orders" ${x.type==="orders"?"selected":""}>طلبات عادية</option><option value="abandoned" ${x.type==="abandoned"?"selected":""}>طلبات متروكة</option></select></label>
+          <label class="f" style="flex:1;min-width:220px">رابط الشيت<input type="text" dir="ltr" data-chg="srcf" data-id="${x.id}" data-f="url" value="${esc(x.url)}" placeholder="https://docs.google.com/spreadsheets/..."></label>
+          <label class="f">كل (دقيقة)<input type="number" min="1" data-chg="srcf" data-id="${x.id}" data-f="syncMin" value="${x.syncMin}"></label></div>
+          <div class="actions"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-chg="srcon" data-id="${x.id}" ${x.on?"checked":""}> مفعل</label>
+          <span class="chip ${x.url?"warn":""}">${x.url?"ينتظر الربط":"بلا رابط"}</span>
+          <button class="btn sm bad" data-act="delsrc" data-id="${x.id}">حذف</button></div></div>`).join("")}
+        <div style="margin-top:12px"><button class="btn" data-act="addsrc">زيد شيت</button></div>
+        <div class="note" style="margin-top:12px">السيرفر هو اللي يقرا الشيتات بإذن من حساب جوجل تاعك، وكل صف يتقرا مرة وحدة.</div>`
+      :`<div class="note">بلا شيت، الطلبات تدخل مباشرة من الحملة (فورم صفحة الهبوط ولا فيسبوك Leads) للموقع، وما تحتاج حتى ورقة وسيطة.</div>`}</section>
+      <section class="panel"><h3>وقت الانتظار قبل الإرسال</h3><div class="o-row"><label class="f">بالدقائق<input type="number" min="0" id="set-wait" value="${SET.waitMin}"></label><button class="btn pri" data-act="saveset2">حفظ</button></div><p class="sub" style="margin:8px 0 0">كل طلبية مؤكدة تستنى هذي المدة وبعدها تتبعث لشركة التوصيل.</p></section>
+      <section class="panel" style="margin-top:14px"><h3>حدود الكمية</h3><p class="sub" style="margin:0 0 8px">تستعملها اقتراحات تبويب "الكميات المتبقية".</p><div class="o-row"><label class="f">قليلة (أو أقل)<input type="number" min="0" id="set-low" value="${SET.lowQty}"></label><label class="f">كبيرة (أو أكثر)<input type="number" min="0" id="set-big" value="${SET.bigQty}"></label><label class="f">رتور افتراضي (%) كي ما تكفيش المعطيات<input type="number" min="0" max="100" id="set-ret" value="${SET.returnPct}"></label><label class="f">أقل كوليات مغلقة باش نثق في نسبة المنتج<input type="number" min="1" id="set-min" value="${SET.minSample}"></label><label class="f">رتور عادي من (%)<input type="number" min="0" max="100" id="set-rl" value="${SET.retLow}"></label><label class="f">رتور عادي إلى (%)<input type="number" min="0" max="100" id="set-rh" value="${SET.retHigh}"></label><button class="btn pri" data-act="saveset3">حفظ</button></div></section>`;
+  }
+    if(tab==="dc"){
+    body=`<div class="panel scroll"><table><thead><tr><th>الفرع</th><th>شركة التوصيل</th><th>المنتجات المربوطة</th><th>الـAPI</th></tr></thead><tbody>${BRANCHES.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.dc)}</td><td>${PRODUCTS.filter(p=>p.branch===b.id).map(p=>esc(p.name)).join("، ")||"-"}</td><td><span class="chip warn">ينتظر الربط</span></td></tr>`).join("")}</tbody></table></div><div class="note" style="margin-top:12px">مفتاح الـAPI تاع كل شركة توصيل ما يتحطش في هذي الصفحة. يتخزن في سيرفر خاص، وهو اللي يبعث الطلبيات ويرجع الحالة (متسلمة، راجعة).</div>`;
+  }
+  if(tab==="conf"){
+    const un=ORDERS.filter(o=>o.status==="new"&&!ASSIGN[o.pid]).length;
+    body=`<section class="panel" style="margin-bottom:14px"><h3>زيد مؤكدة <span class="o-meta">(عندك ${CONFIRMERS.length}، وما كاين حد)</span></h3>
+      <div class="o-row">
+        <label class="f">الاسم<input type="text" id="cf-name"></label>
+        <label class="f">الإيميل<input type="text" id="cf-mail" inputmode="email" dir="ltr"></label>
+        <label class="f">الهاتف<input type="text" id="cf-phone" inputmode="tel" dir="ltr"></label>
+        <label class="f">تاريخ الدخول<input type="date" id="cf-date"></label>
+        <button class="btn pri" data-act="addconf">زيد مؤكدة</button></div>
+      <div class="note" style="margin-top:10px">في الموقع الحقيقي، المؤكدة تستلم دعوة بالإيميل وهي اللي تختار كلمة السر تاعها. كلمة السر ما تتخزنش في الصفحة ولا تتشاف من عندك.</div></section>
+    <section class="panel" style="margin-bottom:14px"><h3>توزيع المنتجات على المؤكدات</h3>
+      ${un?`<div class="note" style="margin-bottom:10px;background:var(--warn-bg);color:var(--warn)">كاين ${un} طلبية جديدة لمنتجات بلا مؤكدة.</div>`:""}
+      <div class="scroll"><table><thead><tr><th>المنتج</th><th>المؤكدة</th></tr></thead><tbody>${PRODUCTS.map(p=>`<tr><td>${esc(p.name)}</td><td><select data-chg="assign" data-id="${p.id}" aria-label="المؤكدة"><option value="">بلا مؤكدة</option>${CONFIRMERS.map(c=>`<option ${ASSIGN[p.id]===c.name?"selected":""}>${esc(c.name)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div></section>
+    <div class="panel scroll"><table><thead><tr><th>المؤكدة</th><th>الإيميل</th><th>الهاتف</th><th>تاريخ الدخول</th><th>الدورة الحالية</th><th>طلبيات مؤكدة</th><th>المستحق (${PAY_PER_CONFIRM} دج للطلبية)</th><th>رسالة الخلاص</th></tr></thead><tbody>${
+      CONFIRMERS.map(c=>{const n=confirmedCount(c.name);return `<tr><td>${esc(c.name)}</td><td class="num">${esc(c.email||"-")}</td><td class="num">${esc(c.phone||"-")}</td><td class="num">${esc(c.joined||"-")}</td><td class="num">${cycleTxt(c.joined).a} ← ${cycleTxt(c.joined).b}</td><td class="num">${n}</td><td class="num">${fmt(n*PAY_PER_CONFIRM)} دج</td><td><button class="btn sm" data-act="msg" data-name="${esc(c.name)}">أنشئ الرسالة</button></td></tr>`}).join("")
+    }</tbody></table></div><div id="msgbox" class="panel" style="margin-top:12px" hidden><h3>الرسالة</h3><textarea id="msgtxt" readonly></textarea><div class="actions" style="margin-top:8px"><button class="btn" data-act="copy">انسخ</button></div></div>
+    <p class="sub" style="margin-top:10px">التأكيدات تتحسب من لحظة التأكيد، وتتشطب إذا الطلبية تلغات في فترة الانتظار.</p>`;
+  }
+    return `<h2>لوحة المدير</h2><p class="sub">تشوف كل شيء: الطلبات، الفروع، الدراهم، والستوك.</p>
+  <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${tab===k}" data-act="tab" data-tab="${k}">${l}</button>`).join("")}</div>${body}`;
+}
+
+/* ---------- واجهة: الفرع ---------- */
+function newStockForm(prods){
+  return `<section class="panel" style="margin-bottom:14px"><h3>وصلتك سلعة؟</h3><p class="sub" style="margin:0 0 8px">اكتب اسم المنتج. إذا كان عندك، تتزاد الكمية للون والمقاس. وإذا منتج جديد، يتسجل وينتظر مراجعة المدير (السعر والمؤكدة).</p>
+  <div class="o-row">
+    <label class="f" style="min-width:200px">اسم المنتج<input type="text" id="ns-name" list="ns-list" placeholder="مثلا: بيجامة قطيفة"></label>
+    <datalist id="ns-list">${prods.map(p=>`<option value="${esc(p.name)}">`).join("")}</datalist>
+    <label class="f">اللون<input type="text" id="ns-c" placeholder="أحمر"></label>
+    <label class="f">المقاس<input type="text" id="ns-s" placeholder="L"></label>
+    <label class="f">الكمية<input type="number" min="1" id="ns-q" value="1"></label>
+    <button class="btn pri" data-act="addstock">زيد للستوك</button></div></section>`;
+}
+function pendingNote(){
+  const l=PRODUCTS.filter(p=>p.pending);
+  return l.length?`<div class="note" style="margin-bottom:14px;background:var(--warn-bg);color:var(--warn)">${l.length} منتج جديد من الفروع ينتظر مراجعتك: ${l.map(p=>esc(p.name)+" ("+esc(BRANCHES.find(b=>b.id===p.branch).name)+")").join("، ")}. حط السعر في تبويب "المنتجات والستوك"، ووزعو على مؤكدة.</div>`:"";
+}
+function viewBr(){
+  const b=BRANCHES.find(x=>x.id===S.branch), tab=S.tab.br;
+  const prods=PRODUCTS.filter(p=>p.branch===b.id);
+  const tabs=[["orders","للتغليف"],["count","عد الستوك اليومي"],["ret","الرتور"],["acc","حسابي"]];
+  let body="";
+  if(tab==="orders"){
+    const l=ORDERS.filter(o=>o.status==="sent"&&(o.lines||[]).some(x=>prod(x.pid).branch===b.id));
+    body=`<div class="panel">${l.length?l.map(o=>`<div class="kv"><span><b>${esc((o.lines||[]).filter(x=>prod(x.pid).branch===b.id).map(lineTxt).join(" + "))}</b><div class="o-meta">${esc(o.wilaya)} · ${esc(o.commune)}</div></span><span class="num chip ok">${esc((o.tracks||{})[b.id]||o.tracking||"-")}</span></div>`).join(""):`<div class="empty">ما كاين حتى طلبية للتغليف ذركا.</div>`}</div>
+    <p class="sub" style="margin-top:10px">هذي الطلبيات وصلت لحساب شركة التوصيل تاعك. غلفها وسلمها. إذا الطلبية فيها منتجات من فروع أخرى، تشوف غير قطعك.</p>`;
+  }
+    if(tab==="count"){
+    body=prods.length?`<p class="sub">كل لون ومقاس سطر. بدل الكمية وحفظ، ولا زيد متغير جديد كي تجيك سلعة.</p>`+prods.map(p=>`<section class="panel" style="margin-bottom:12px"><h3>${esc(p.name)} ${p.pending?`<span class="chip warn">بانتظار المدير</span> `:""}<span class="o-meta">آخر عد: ${p.upd}</span></h3><div class="o-row">${Object.entries(p.v).map(([k,q])=>`<label class="f">${esc(k)}<input type="number" min="0" data-cnt="${p.id}" data-k="${esc(k)}" value="${q}"></label>`).join("")}</div><div style="margin-top:10px"><button class="btn pri" data-act="savecount" data-id="${p.id}">حفظ العد</button></div><div class="o-row" style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)"><label class="f">لون جديد<input type="text" id="nvc-${p.id}" placeholder="مثلا: أحمر"></label><label class="f">مقاس جديد<input type="text" id="nvs-${p.id}" placeholder="مثلا: L"></label><label class="f">الكمية<input type="number" min="0" id="nvq-${p.id}" value="0"></label><button class="btn" data-act="addvar" data-id="${p.id}">زيد متغير</button></div></section>`).join(""):`<div class="empty">ما عندكش منتجات مربوطة.</div>`;
+    body=newStockForm(prods)+body;
+  }
+  if(tab==="ret"){
+    const R=S.ret;
+    if(!prods.some(p=>p.id===R.pid)){R.pid=prods[0]?prods[0].id:"";R.color="";R.size=""}
+    const pr=prods.find(p=>p.id===R.pid);
+    const vk=pr?Object.keys(pr.v).map(k=>k.split(" / ")):[];
+    const colors=[...new Set(vk.map(x=>x[0]))];
+    if(!colors.includes(R.color)) R.color=colors[0]||"";
+    const sizes=[...new Set(vk.filter(x=>x[0]===R.color).map(x=>x[1]||""))];
+    if(!sizes.includes(R.size)) R.size=sizes[0]||"";
+    const sentL=ORDERS.filter(o=>o.status==="sent"&&(o.lines||[]).some(x=>prod(x.pid).branch===b.id)&&!((o.retBr||{})[b.id]));
+    body=`<section class="panel"><h3>سجل كولي راجع من شركة التوصيل</h3><p class="sub">اختار الكولي من القائمة، ولا اختار المنتج واللون والمقاس والكمية. ما تكتب والو.</p>
+      <div class="o-row"><label class="f" style="min-width:240px">الكولي (اختياري)<select data-chg="retorder"><option value="">— اختار —</option>${sentL.map(o=>{const val=o.id+"|"+b.id;return `<option value="${val}" ${val===String(R.order)?"selected":""}>${esc((o.tracks||{})[b.id]||o.tracking||"-")} · ${esc((o.lines||[]).filter(x=>prod(x.pid).branch===b.id).map(lineTxt).join(" + "))}</option>`}).join("")}</select></label></div>
+      <div class="o-row" style="margin-top:10px">
+        <label class="f">المنتج<select data-chg="retf" data-f="pid">${prods.map(p=>`<option value="${p.id}" ${p.id===R.pid?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>
+        <label class="f">اللون<select data-chg="retf" data-f="color">${colors.map(c=>`<option ${c===R.color?"selected":""}>${esc(c)}</option>`).join("")}</select></label>
+        <label class="f">المقاس<select data-chg="retf" data-f="size">${sizes.map(z=>`<option ${z===R.size?"selected":""}>${esc(z)}</option>`).join("")}</select></label>
+        <label class="f">الكمية<select data-chg="retf" data-f="qty">${Array.from({length:70},(_,i)=>i+1).map(n=>`<option ${n===R.qty?"selected":""}>${n}</option>`).join("")}</select></label>
+        <button class="btn pri" data-act="addret">سجل الرتور</button></div></section>
+      <section class="panel" style="margin-top:12px"><h3>الرتور المسجل</h3>${RETURNS.filter(r=>r.b===b.id).map(r=>`<div class="kv"><span>${esc(r.trk||"-")} · ${esc(r.p)} · ${esc(r.v)} × ${r.q}</span><span class="chip ok">رجع للستوك</span></div>`).join("")||`<div class="empty">ما سجلت حتى رتور.</div>`}</section>`;
+  }
+    if(tab==="acc"){
+    body=`<div class="grid g2"><section class="panel"><h3>حسابك مع المدير</h3>
+      <div class="kv"><span>رفدت من شركة التوصيل</span><b class="num">${fmt(ledgerSum(b.id,"collected"))} دج</b></div>
+      <div class="kv"><span>خلصت بيهم المورد</span><b class="num">${fmt(ledgerSum(b.id,"purchase"))} دج</b></div>
+      <div class="kv"><span>بعثت للمدير</span><b class="num">${fmt(ledgerSum(b.id,"sent"))} دج</b></div>
+      <div class="kv"><span>أدس خلصها المدير</span><b class="num">${fmt(ledgerSum(b.id,"ads"))} دج</b></div>
+      <div class="kv"><span>عندك دراهم</span><b class="big num">${fmt(held(b.id))} دج</b></div></section>
+      <section class="panel"><h3>السيولة المتوفرة عندك</h3><p class="sub">المدير يشوف هذا الرقم كي يختار أنهي فرع يشري السلعة.</p>
+      <div class="o-row"><input type="number" id="liq" min="0" value="${b.liq}" aria-label="السيولة"><button class="btn pri" data-act="saveliq">حدّث</button></div></section></div>`;
+  }
+  return `<h2>${esc(b.name)}</h2>
+  <p class="sub">تشوف غير الطلبات والستوك والحساب تاعك. وما تشوفش الفروع الأخرى ولا الأرباح.</p>
+  <div class="o-row" style="margin-bottom:12px"><label class="f" style="min-width:200px">جرب فرع آخر<select data-chg="curbr">${BRANCHES.map(x=>`<option value="${x.id}" ${x.id===b.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label></div>
+  <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${tab===k}" data-act="tab" data-tab="${k}">${l}</button>`).join("")}</div>${body}`;
+}
+
+function viewSv(){
+  const me=SUIVI.find(x=>x.name===S.sv)||SUIVI[0];
+  if(!me) return `<div class="empty">ما كاين حتى سويفي. زيد واحد من عند المدير.</div>`;
+  const b=BRANCHES.find(x=>x.id===me.branch);
+  const l=ORDERS.filter(o=>o.status==="sent"&&(o.lines||[]).some(x=>prod(x.pid).branch===b.id));
+  return `<h2>${esc(me.name)}</h2><p class="sub">تتبع كوليات ${esc(b.dc)}. تشوف غير كوليات فرعك.</p>
+  <div class="o-row" style="margin-bottom:12px"><label class="f" style="min-width:200px">جرب سويفي آخر<select data-chg="cursv">${SUIVI.map(x=>`<option ${x.name===me.name?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label></div>
+  <div class="panel">${l.length?l.map(o=>`<div class="wait-item"><div><b>${esc(o.name)}</b> <span class="num chip ok">${esc((o.tracks||{})[b.id]||o.tracking||"-")}</span>
+    <div class="o-meta">${esc((o.lines||[]).filter(x=>prod(x.pid).branch===b.id).map(lineTxt).join(" + "))} · ${esc(o.wilaya)} · ${esc(o.commune)}</div>
+    <div class="o-row" style="margin-top:6px"><a class="btn sm" href="tel:${o.phone.replace(/\s/g,"")}">اتصال</a><span class="num">${o.phone}</span> ${isBlocked(o)?`<span class="chip bad">ليست نوار</span>`:`<button class="btn sm bad" data-act="blk" data-id="${o.id}">حط الرقم في ليست نوار</button>`}</div></div>
+    <label class="f">آخر متابعة<select data-chg="follow" data-id="${o.id}">${FOLLOW.map(f=>`<option ${f===(o.follow||FOLLOW[0])?"selected":""}>${f}</option>`).join("")}</select></label></div>`).join(""):`<div class="empty">ما كاين حتى كولي في التوصيل.</div>`}</div>
+  <p class="sub" style="margin-top:10px">الحالة النهائية (متسلمة ولا راجعة) تجي من شركة التوصيل أوتوماتيك. هنا تسجل غير متابعتك.</p>`;
+}
+/* ---------- عرض ---------- */
+function render(){
+  document.querySelectorAll(".roles button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.role===S.role));
+  $("#app").innerHTML = S.role==="mgr"?viewMgr():S.role==="conf"?viewConf():S.role==="sv"?viewSv():viewBr();
+  updateAiFab();
+  tick(true);
+}
+function tick(noProcess){
+  let changed=false; const t=Date.now();
+  ORDERS.forEach(o=>{ if(o.status==="wait" && t>=o.sendAt && !noProcess){ sendOrder(o); changed=true; } });
+  if(changed){ render(); toast("طلبية تبعثت أوتوماتيك لشركة التوصيل."); return; }
+  document.querySelectorAll("[data-ring]").forEach(el=>{
+    const o=ORDERS.find(x=>x.id==el.dataset.ring); if(!o) return;
+    const left=Math.max(0,o.sendAt-t), r=Math.min(1,left/o.total);
+    el.querySelector(".fg").style.strokeDashoffset=(113.1*(1-r)).toFixed(1);
+    const s=Math.ceil(left/1000);
+    el.querySelector("span").textContent = s>=120? Math.ceil(s/60)+"د" : s+"ث";
+  });
+}
+setInterval(()=>tick(false),1000);
+
+/* ---------- أحداث ---------- */
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]"); if(!el) return;
+  const a=el.dataset.act, id=+el.dataset.id, o=ORDERS.find(x=>x.id===id);
+  if(a==="role"){S.role=el.dataset.role;render();return}
+  if(a==="tab"){S.tab[S.role]=el.dataset.tab;render();return}
+  if(a==="confirm"){
+    if(isBlocked(o)){toast("هذا الرقم في ليست نوار.");return}
+    const ps=[...document.querySelectorAll(`[data-chg="opid"][data-id="${id}"]`)].map(x=>x.value);
+    const vs=[...document.querySelectorAll(`[data-chg="opick"][data-id="${id}"]`)].map(x=>x.value);
+    const lines=ps.map((pid,i)=>({pid,v:vs[i]}));
+    if(!lines.length||lines.some(l=>!l.v)){toast("اختار المنتج واللون والمقاس.");return}
+    const need={}; lines.forEach(l=>{const k=l.pid+"|"+l.v; need[k]=(need[k]||0)+1});
+    const bad=Object.keys(need).find(k=>{const [pid,v]=k.split("|"); return !(prod(pid).v[v]>=need[k])});
+    if(bad){toast("الكمية المتوفرة من "+bad.split("|")[1]+" ما تكفيش.");return}
+    lines.forEach(l=>{prod(l.pid).v[l.v]--});
+    o.lines=lines; o.qty=lines.length; o.var=linesText(o);
+    o.status="wait"; o.by=S.me; o.total=waitMs(); o.sendAt=Date.now()+o.total;
+    delete S.qty[id]; delete S.pick[id];
+    render(); toast("تأكدت. تقدر تبدل القطع أو تلغيها قبل ما تتبعث."); return;
+  }
+  if(a==="addpiece"){
+    const first=prod(o.pid), cand=[first,...PRODUCTS.filter(x=>x.id!==first.id&&!x.pending)];
+    const pp=cand.find(x=>Object.values(x.v).some(n=>n>0));
+    if(!pp){toast("ما بقاتش سلعة.");return}
+    const v=Object.keys(pp.v).find(k=>pp.v[k]>0);
+    pp.v[v]--; o.lines=o.lines||[]; o.lines.push({pid:pp.id,v}); o.qty=o.lines.length; o.var=linesText(o); render(); return;
+  }
+  if(a==="rmpiece"){
+    o.lines=o.lines||[];
+    if(o.lines.length>1){const l=o.lines.pop(); const pp=prod(l.pid); pp.v[l.v]=(pp.v[l.v]||0)+1; o.qty=o.lines.length; o.var=linesText(o)}
+    render(); return;
+  }
+    if(a==="noans"){const n=["new","failed1","failed2","failed3"];const i=n.indexOf(o.status);o.status=n[Math.min(i<0?0:i+1,3)];render();return}
+  if(a==="postpone"){o.status="postponed";render();toast("تأجلت.");return}
+  if(a==="dup"){o.status="dup";render();toast("تسجلت مكررة.");return}
+  if(a==="cancel"){o.status="cancelled";render();toast("تلغات.");return}
+  if(a==="cancelwait"){(o.lines||[]).forEach(l=>{const pp=prod(l.pid);pp.v[l.v]=(pp.v[l.v]||0)+1});o.status="cancelled";o.by=null;render();toast("تلغات، والكمية رجعت للستوك.");return}
+  if(a==="sendnow"){sendOrder(o,S.role==="mgr"?"المدير":S.me);render();toast("تبعثت لشركة التوصيل.");return}
+  if(a==="sendall"){ORDERS.filter(x=>x.status==="wait").forEach(x=>sendOrder(x,"المدير"));render();toast("تبعثو كامل.");return}
+  if(a==="addledger"){
+    const b=el.dataset.b, amt=+$("#la-"+b).value; if(!amt){toast("دخل المبلغ.");return}
+    LEDGER.push({b,t:$("#lt-"+b).value,amt,note:"",d:"اليوم"}); render(); toast("تسجلت العملية.");return;
+  }
+  if(a==="msg"){
+    const n=el.dataset.name, c=confirmedCount(n), cy=cycleTxt((CONFIRMERS.find(x=>x.name===n)||{}).joined);
+    $("#msgtxt").value=`السلام عليكم ${n}،\nالفترة: من ${cy.a} إلى ${cy.b}\nعدد الطلبيات المؤكدة في هذه الفترة: ${c}\nالمبلغ المستحق: ${fmt(c*PAY_PER_CONFIRM)} دج\nيتم التحويل عبر بريدي موب.`;
+    $("#msgbox").hidden=false; return;
+  }
+  if(a==="addconf"){
+    const n=$("#cf-name").value.trim(), m=$("#cf-mail").value.trim(), ph=$("#cf-phone").value.trim();
+    if(!n||!/^\S+@\S+\.\S+$/.test(m)){toast("دخل الاسم وإيميل صحيح.");return}
+    if(CONFIRMERS.some(c=>c.name===n)){toast("هذا الاسم موجود.");return}
+    CONFIRMERS.push({name:n,base:0,email:m,phone:ph,joined:$("#cf-date").value||todayISO()}); render(); toast("تزادت. الدعوة تتبعث من السيرفر في الموقع الحقيقي."); return;
+  }
+  if(a==="aitoggle"){const el2=$("#ai");el2.hidden=!el2.hidden;if(!el2.hidden){aiLog();$("#ai-text").focus()}return}
+  if(a==="aisend"){aiSend();return}
+  if(a==="addstock"){
+    const n=$("#ns-name").value.trim(), c=$("#ns-c").value.trim(), z=$("#ns-s").value.trim(), q=Math.max(1,+$("#ns-q").value||1);
+    if(!n||!c||!z){toast("دخل اسم المنتج واللون والمقاس.");return}
+    const key=c+" / "+z;
+    let pr=PRODUCTS.find(x=>x.branch===S.branch&&norm(x.name)===norm(n));
+    if(pr){pr.v[key]=(pr.v[key]||0)+q;pr.upd="اليوم الآن";render();toast("تزادت الكمية للستوك.");return}
+    const nid="p"+Date.now();
+    PRODUCTS.push({id:nid,name:n,price:0,branch:S.branch,min:3,upd:"اليوم الآن",pending:true,v:{[key]:q}});
+    ACC[nid]={qty:0,parcels:0,ordersN:0,inDelP:0,buy:0,pack:20,label:5,transOO:0,transOH:0,retPack:20,conf:50,confN:0,retN:0,delN:0,inDel:0,sales:0,suiviRate:0,creative:0,other:0,usd:0,rate:252,selling:true};
+    CAMP[nid]=false;
+    render(); toast("منتج جديد: تسجل وينتظر مراجعة المدير."); return;
+  }
+  if(a==="approve"){
+    const pr=prod(el.dataset.id), v=Math.max(0,+$("#pr-"+pr.id).value||0);
+    if(!v){toast("دخل السعر.");return}
+    pr.price=v; pr.pending=false; render(); toast("تعتمد. وزعو على مؤكدة من تبويب المؤكدات."); return;
+  }
+  if(a==="brmsg"){
+    const b=BRANCHES.find(x=>x.id===el.dataset.b), d=branchDue(b);
+    $("#brtxt").value=`السلام عليكم،\nالمطلوب تحويل ${fmt(Math.max(0,d.left))} دج (ثمن الأدس + حصتي من الفايدة).\nالتحويل عبر بريدي موب.`;
+    $("#brbox").hidden=false; return;
+  }
+  if(a==="brcopy"){const t=$("#brtxt");t.select();try{navigator.clipboard.writeText(t.value);toast("تنسخت.")}catch(_){toast("حدد النص وانسخو يدويا.")}return}
+  if(a==="cblk"){
+    if(!isBlocked(o)){BLACKLIST.push({phone:o.phone,name:o.name,reason:"من المؤكدة عند التأكيد",d:"اليوم",by:S.me})}
+    render(); toast("الرقم دخل ليست نوار، وما بقاش يوصل."); return;
+  }
+  if(a==="blk"){
+    if(!isBlocked(o)){BLACKLIST.push({phone:o.phone,name:o.name,reason:o.follow||FOLLOW[0],d:"اليوم",by:S.sv}); toast("الرقم دخل ليست نوار.")}
+    render(); return;
+  }
+  if(a==="addbl"){
+    const ph=$("#bl-phone").value.trim();
+    if(phoneKey(ph).length<9){toast("دخل رقم هاتف صحيح.");return}
+    if(BLACKLIST.some(b=>phoneKey(b.phone)===phoneKey(ph))){toast("الرقم موجود.");return}
+    BLACKLIST.push({phone:ph,name:$("#bl-name").value.trim(),reason:$("#bl-reason").value,d:"اليوم",by:"المدير"}); render(); toast("تزاد لليست نوار."); return;
+  }
+  if(a==="delbl"){BLACKLIST.splice(+el.dataset.i,1);render();return}
+  if(a==="addsrc"){SOURCES.push({id:Date.now(),name:"شيت جديد",type:"orders",url:"",syncMin:5,on:true});render();return}
+  if(a==="delsrc"){const i=SOURCES.findIndex(x=>x.id===id);if(i>=0)SOURCES.splice(i,1);render();return}
+  if(a==="addsv"){
+    const n=$("#sv-name").value.trim(), m=$("#sv-mail").value.trim(), ph=$("#sv-phone").value.trim(), br=$("#sv-br").value;
+    if(!n||!/^\S+@\S+\.\S+$/.test(m)){toast("دخل الاسم وإيميل صحيح.");return}
+    if(SUIVI.some(x=>x.name===n)){toast("هذا الاسم موجود.");return}
+    SUIVI.push({name:n,email:m,phone:ph,branch:br,joined:$("#sv-date").value||todayISO()}); render(); toast("تزاد السويفي."); return;
+  }
+  if(a==="saveset3"){SET.lowQty=Math.max(0,+$("#set-low").value||0);SET.bigQty=Math.max(0,+$("#set-big").value||0);SET.returnPct=Math.min(100,Math.max(0,+$("#set-ret").value||0));SET.minSample=Math.max(1,+$("#set-min").value||20);SET.retLow=Math.max(0,+$("#set-rl").value||0);SET.retHigh=Math.max(SET.retLow,+$("#set-rh").value||0);render();toast("تحفظت الحدود.");return}
+  if(a==="saveset2"){SET.waitMin=Math.max(0,+$("#set-wait").value||10); render(); toast("تحفظ وقت الانتظار."); return}
+  if(a==="ainew"){if(AI.ctl)AI.ctl.abort();AI.turns=[];AI.busy=false;aiLog();return}
+  if(a==="copy"){const t=$("#msgtxt");t.select();try{navigator.clipboard.writeText(t.value);toast("تنسخت.")}catch(_){toast("حدد النص وانسخو يدويا.")}return}
+  if(a==="savecount"){
+    const p=prod(el.dataset.id);
+    document.querySelectorAll(`[data-cnt="${p.id}"]`).forEach(i=>{p.v[i.dataset.k]=Math.max(0,+i.value||0)});
+    p.upd="اليوم الآن"; render(); toast("تحدث الستوك."); return;
+  }
+  if(a==="addvar"){
+    const p=prod(el.dataset.id), c=$("#nvc-"+p.id).value.trim(), z=$("#nvs-"+p.id).value.trim(), q=Math.max(0,+$("#nvq-"+p.id).value||0);
+    if(!c||!z){toast("دخل اللون والمقاس.");return}
+    const k=c+" / "+z; p.v[k]=(p.v[k]||0)+q; p.upd="اليوم الآن"; render(); toast("تزاد المتغير للستوك."); return;
+  }
+  if(a==="addret"){
+    const R=S.ret; let ord=null;
+    if(R.order){const oid=String(R.order).split("|")[0]; ord=ORDERS.find(x=>String(x.id)===oid)}
+    if(ord){
+      const mine=(ord.lines||[]).filter(x=>prod(x.pid).branch===S.branch);
+      mine.forEach(l=>{const pp=prod(l.pid);pp.v[l.v]=(pp.v[l.v]||0)+1});
+      ord.retBr=ord.retBr||{}; ord.retBr[S.branch]=true;
+      if(brIds(ord).every(b=>ord.retBr[b])) ord.status="returned";
+      RETURNS.push({b:S.branch,trk:(ord.tracks||{})[S.branch]||"",p:[...new Set(mine.map(l=>prod(l.pid).name))].join("، "),v:mine.map(l=>l.v).join(" + "),q:mine.length});
+    } else {
+      const pr=prod(R.pid); if(!pr||!R.color||!R.size){toast("اختار المنتج واللون والمقاس.");return}
+      const v=R.color+" / "+R.size, q=R.qty;
+      pr.v[v]=(pr.v[v]||0)+q; RETURNS.push({b:S.branch,trk:"",p:pr.name,v,q});
+    }
+    S.ret={pid:"",color:"",size:"",qty:1,order:""}; render();
+    toast("تسجل الرتور ورجع للستوك."); return;
+  }
+  if(a==="saveliq"){BRANCHES.find(b=>b.id===S.branch).liq=+$("#liq").value||0;render();toast("تحدثت السيولة.");return}
+});
+document.addEventListener("change",e=>{
+  const el=e.target.closest("[data-chg]"); if(!el) return;
+  const c=el.dataset.chg;
+  if(c==="var"){const o=ORDERS.find(x=>x.id==el.dataset.id),i=+el.dataset.i||0,l=o.lines[i],pp=prod(l.pid),nv=el.value;
+    if(nv!==l.v){ if(!(pp.v[nv]>0)){toast("هذا اللون خلص.");render();return} pp.v[l.v]++; pp.v[nv]--; l.v=nv; o.var=linesText(o)}
+    render(); toast("تبدلت القطعة."); return}
+  if(c==="wpid"){const o=ORDERS.find(x=>x.id==el.dataset.id),i=+el.dataset.i||0,l=o.lines[i],np=prod(el.value);
+    if(np.id!==l.pid){const nv=Object.keys(np.v).find(k=>np.v[k]>0);
+      if(!nv){toast("هذا المنتج خلص.");render();return}
+      const op=prod(l.pid); op.v[l.v]++; np.v[nv]--; l.pid=np.id; l.v=nv; o.var=linesText(o)}
+    render(); toast("تبدل منتج القطعة."); return}
+  if(c==="branch"){prod(el.dataset.id).branch=el.value;render();toast("تبدل الفرع المربوط.");return}
+  if(c==="curbr"){S.branch=el.value;render();return}
+  if(c==="assign"){ASSIGN[el.dataset.id]=el.value;render();toast("تبدل التوزيع.");return}
+  if(c==="curconf"){S.me=el.value;render();return}
+  if(c==="src"){SET.source=el.value;render();return}
+  if(c==="camp"){CAMP[el.dataset.id]=el.checked;render();return}
+  if(c==="oqty"){S.qty[el.dataset.id]=+el.value;render();return}
+  if(c==="opid"){const k=el.dataset.id;S.pick[k]=S.pick[k]||[];S.pick[k][+el.dataset.i]={pid:el.value,v:""};render();return}
+  if(c==="opick"){const k=el.dataset.id;S.pick[k]=S.pick[k]||[];S.pick[k][+el.dataset.i]={pid:el.dataset.p,v:el.value};return}
+  if(c==="brtype"){BRANCHES.find(b=>b.id===el.dataset.id).type=el.value;render();return}
+  if(c==="retorder"){S.ret.order=el.value; const oid=String(el.value).split("|")[0], o=ORDERS.find(x=>String(x.id)===oid);
+    if(o){const mine=(o.lines||[]).filter(x=>prod(x.pid).branch===S.branch); const ln=mine[0]; if(ln){const parts=ln.v.split(" / ");S.ret.pid=ln.pid;S.ret.color=parts[0];S.ret.size=parts[1]||"";S.ret.qty=mine.length||1}}
+    render();return}
+  if(c==="retf"){const f=el.dataset.f;S.ret.order="";S.ret[f]=f==="qty"?+el.value:el.value;
+    if(f==="pid"){S.ret.color="";S.ret.size=""} if(f==="color"){S.ret.size=""}
+    render();return}
+  if(c==="srcf"){const x=SOURCES.find(y=>y.id==el.dataset.id), f=el.dataset.f; let v=el.value;
+    if(f==="url"){v=v.trim(); if(v&&!v.startsWith("https://docs.google.com/spreadsheets/")){toast("الرابط لازم يكون تاع شيت جوجل.");render();return}}
+    if(f==="syncMin") v=Math.max(1,+v||5);
+    x[f]=v; render(); return}
+  if(c==="srcon"){SOURCES.find(y=>y.id==el.dataset.id).on=el.checked;render();return}
+  if(c==="cursv"){S.sv=el.value;render();return}
+  if(c==="follow"){ORDERS.find(x=>x.id==el.dataset.id).follow=el.value;toast("تسجلت المتابعة.");return}
+  if(c==="acc"){ACC[el.dataset.id][el.dataset.f]=Math.max(0,+el.value||0);render();return}
+  if(c==="accsell"){ACC[el.dataset.id].selling=el.checked;render();return}
+});
+/* ---------- المساعد ---------- */
+function updateAiFab(){const show=S.role==="mgr"&&!!SAMPLE;$("#ai-fab").hidden=!show;if(!show)$("#ai").hidden=true}
+(async()=>{try{if(window.claude&&window.claude.use){SAMPLE=await window.claude.use("sample")}}catch(_){SAMPLE=null}updateAiFab()})();
+const norm=x=>String(x||"").trim().replace(/\s+/g," ").toLowerCase();
+function findOne(list,q,getName,what){
+  const n=norm(q); if(!n) throw new Error("ما عطيتنيش "+what);
+  let m=list.filter(x=>norm(getName(x))===n);
+  if(!m.length) m=list.filter(x=>norm(getName(x)).includes(n)||n.includes(norm(getName(x))));
+  if(!m.length) throw new Error("ما لقيتش "+what+" بهذا الاسم: "+q);
+  if(m.length>1) throw new Error("اسم "+what+" غامض: "+m.map(getName).join("، "));
+  return m[0];
+}
+const AI_RULES = "أنت مساعد داخل لوحة عمل ياسين (تجارة إلكترونية في الجزائر). تهضر بالدارجة الجزائرية البسيطة وباختصار. ما تقولش دابا ولا الفلوس، قل ذركا والدراهم. مهمتك الوحيدة: توزيع المنتجات على المؤكدات. كل منتج يتوزع على مؤكدة واحدة وطلباتو تروح لها. استعمل الأدوات. ما تخترعش أسماء منتجات ولا مؤكدات، وإذا الاسم غامض ولا ما لقيتوش اسقسي ياسين. إذا طلب حاجة خارج التوزيع، قولو بلي ذركا تخدم على التوزيع غير. بعد ما تنفذ، قولو واش تبدل بالضبط.";
+const AI_TOOLS = [
+  {name:"get_state",description:"يرجع أسماء المنتجات والمؤكدة اللي موزع عليها كل منتج، وأسماء المؤكدات. استعملو قبل أي تعديل.",
+   execute:()=>({products:PRODUCTS.map(p=>({name:p.name,assigned_to:ASSIGN[p.id]||null})),confirmers:CONFIRMERS.map(c=>c.name)})},
+  {name:"assign_product",description:"يوزع منتج على مؤكدة. product: اسم المنتج. confirmer: اسم المؤكدة. يرجع واش تبدل.",
+   inputSchema:{type:"object",properties:{product:{type:"string"},confirmer:{type:"string"}},required:["product","confirmer"]},
+   execute:(inp)=>{
+     if(S.role!=="mgr") throw new Error("هذا للمدير فقط");
+     const p=findOne(PRODUCTS,inp.product,x=>x.name,"المنتج");
+     const c=findOne(CONFIRMERS,inp.confirmer,x=>x.name,"المؤكدة");
+     const before=ASSIGN[p.id]||"بلا مؤكدة"; ASSIGN[p.id]=c.name; render();
+     return {ok:true,product:p.name,from:before,to:c.name};
+   }}
+];
+function aiLog(){
+  const box=$("#ai-log"); box.textContent="";
+  if(!AI.turns.length){const d=document.createElement("div");d.className="ai-m";d.textContent="قولي مثلا: بيجامة قطيفة عطيها للمؤكدة ب. ولا: وزع كل المنتجات على المؤكدة ج.";box.append(d)}
+  AI.turns.forEach(t=>{const d=document.createElement("div");d.className="ai-m"+(t.role==="user"?" me":"");d.textContent=t.content;box.append(d)});
+  if(AI.busy){const d=document.createElement("div");d.className="ai-m";d.textContent="يفكر...";box.append(d)}
+  box.scrollTop=box.scrollHeight;
+}
+async function aiSend(){
+  const inp=$("#ai-text"), q=inp.value.trim(); if(!q||AI.busy||!SAMPLE) return;
+  inp.value=""; AI.turns.push({role:"user",content:q}); AI.busy=true; AI.ctl=new AbortController(); aiLog();
+  try{
+    const r=await SAMPLE([{role:"user",content:AI_RULES},{role:"assistant",content:"فهمت، جاهز."},...AI.turns],{tools:AI_TOOLS,signal:AI.ctl.signal,modelTier:"quick"});
+    AI.turns.push({role:"assistant",content:r.text});
+  }catch(e){
+    const c=e&&e.code;
+    AI.turns.push({role:"assistant",content:c==="not_granted"?"ما سمحتش للمساعد يخدم. تقدر تعاود تسمحلو من إعدادات الصفحة.":c==="cancelled"?"توقف.":"ما قدرتش نكمل ("+(c||"خطأ")+"). عاود المحاولة."});
+  }
+  AI.busy=false; aiLog();
+}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="ai-text"){e.preventDefault();aiSend()}});
+
+render();
+</script>
+</body>
+</html>
