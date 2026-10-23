@@ -9,5 +9,5 @@ PSQL=(psql -v ON_ERROR_STOP=1 -q -X -t)
 "${PSQL[@]}" -d "$DB" -f tests/sql/00_supabase_shim.sql
 for f in supabase/migrations/*.sql; do "${PSQL[@]}" -d "$DB" -f "$f"; done
 "${PSQL[@]}" -d "$DB" -f supabase/seed.sql >/dev/null
-"${PSQL[@]}" -d "$DB" -f tests/sql/10_rls_test.sql 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //'
+for t in tests/sql/[1-9]*.sql; do "${PSQL[@]}" -d "$DB" -f "$t" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //'; done
 echo "كل تيستات الصلاحيات نجحو."

@@ -39,3 +39,23 @@ insert into public.ledger_entries (branch_id, type, amount, note, entry_day) val
   ('00000000-0000-0000-0000-0000000000b2', 'collected', 130000, 'تحصيل', '2026-10-16'),
   ('00000000-0000-0000-0000-0000000000b2', 'purchase',   70000, 'شراء روب سبور', '2026-10-12'),
   ('00000000-0000-0000-0000-0000000000b4', 'collected', 210000, 'تحصيل', '2026-10-18');
+
+-- طلبيات تجريبية (زبائن وهميين، كيما النموذج)
+with o(name, phone, wilaya, commune, pid, qty, status, kind) as (values
+  ('زبون تجريبي 1', '0550000001', 'بومرداس', 'بودواو', '00000000-0000-0000-0000-0000000000a1'::uuid, 1, 'new', 'normal'),
+  ('زبون تجريبي 2', '0550000002', 'الجزائر', 'براقي', '00000000-0000-0000-0000-0000000000a2'::uuid, 2, 'new', 'normal'),
+  ('زبون تجريبي 3', '0550000003', 'معسكر', 'سيق', '00000000-0000-0000-0000-0000000000a3'::uuid, 1, 'new', 'normal'),
+  ('زبون تجريبي 4', '0550000004', 'تيبازة', 'القليعة', '00000000-0000-0000-0000-0000000000a4'::uuid, 1, 'failed1', 'normal'),
+  ('زبون تجريبي 5', '0550000005', 'وهران', 'السانية', '00000000-0000-0000-0000-0000000000a1'::uuid, 1, 'postponed', 'normal'),
+  ('زبون تجريبي 6', '0550000006', 'البليدة', 'بوفاريك', '00000000-0000-0000-0000-0000000000a4'::uuid, 2, 'new', 'normal'),
+  ('زبون متروك 1', '0550000011', 'الجزائر', 'الحراش', '00000000-0000-0000-0000-0000000000a1'::uuid, 1, 'new', 'abandoned'),
+  ('زبون متروك 2', '0550000012', 'سطيف', 'العلمة', '00000000-0000-0000-0000-0000000000a4'::uuid, 1, 'new', 'abandoned')
+), ins as (
+  insert into public.orders (customer_name, phone, wilaya, commune, product_id, product_name, qty, status)
+  select o.name, o.phone, o.wilaya, o.commune, o.pid, p.name, o.qty, o.status::public.order_status
+  from o join public.products p on p.id = o.pid
+  returning id, customer_name
+)
+insert into public.order_meta (order_id, kind, source)
+select ins.id, o.kind::public.order_kind, case o.kind when 'abandoned' then 'طلبات متروكة (تجريبي)' else 'الطلبات الرئيسية (تجريبي)' end
+from ins join o on o.name = ins.customer_name;

@@ -23,6 +23,8 @@ export function homeFor(role: Role): string {
   switch (role) {
     case "manager": return "/manager";
     case "branch": return "/branch";
+    case "confirmer": return "/confirm";
+    case "dispatch": return "/dispatch";
     default: return "/soon";
   }
 }
