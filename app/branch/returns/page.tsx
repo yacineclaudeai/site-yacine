@@ -18,7 +18,6 @@ export default async function BranchReturns({ searchParams }: { searchParams: Sp
 
   return (
     <>
-      <h2>الرتور</h2>
       <Flash searchParams={searchParams} />
       <section className="panel">
         <h3>سجل كولي راجع من شركة التوصيل</h3>

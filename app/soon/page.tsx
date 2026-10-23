@@ -9,7 +9,7 @@ export default async function Soon() {
   if (!me || me.locked) redirect("/login");
   return (
     <>
-      <Header me={me} nav={[]} />
+      <Header me={me} />
       <main>
         <div className="panel empty">
           <h2>مرحبا {me.name}</h2>

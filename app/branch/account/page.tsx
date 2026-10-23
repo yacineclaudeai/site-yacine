@@ -23,7 +23,6 @@ export default async function BranchAccount({ searchParams }: { searchParams: Sp
 
   return (
     <>
-      <h2>حسابي</h2>
       <Flash searchParams={searchParams} />
       <div className="grid g2">
         <section className="panel">

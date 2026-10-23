@@ -8,23 +8,69 @@ type Sp = Promise<{ ok?: string; err?: string }>;
 
 export default async function Products({ searchParams }: { searchParams: Sp }) {
   const [branches, products] = await Promise.all([loadBranches(), loadProducts()]);
-  const pending = products.filter((p) => p.pending);
+  const br = new Map(branches.map((b) => [b.id, b]));
 
   return (
     <>
-      <h2>المنتجات والستوك</h2>
-      <p className="sub">كل منتج تابع لفرع واحد، وعندو ألوان ومقاسات. الستوك ما يتبدلش باليد: يتزاد، يتعد، ولا يتصحح بسبب.</p>
       <Flash searchParams={searchParams} />
-      {!!pending.length && (
-        <div className="note" style={{ marginBottom: 14, background: "var(--warn-bg)", color: "var(--warn)" }}>
-          {pending.length} منتج جديد من الفروع ينتظر السعر تاعك: {pending.map((p) => p.name).join("، ")}.
-        </div>
-      )}
-      <div className="grid g2" style={{ marginBottom: 14 }}>
-        <section className="panel">
-          <h3>منتج جديد</h3>
+      <div className="panel scroll">
+        <table>
+          <thead><tr><th>المنتج</th><th>السعر</th><th>الفرع المربوط</th><th>الستوك حسب اللون</th></tr></thead>
+          <tbody>
+            {products.length ? products.map((p) => {
+              const last = p.variants.map((v) => v.counted_at).filter(Boolean).sort().at(-1) ?? null;
+              const fid = `p-${p.id}`;
+              return (
+                <tr key={p.id}>
+                  <td>
+                    <b>{p.name}</b> {p.pending && <span className="chip warn">منتج جديد من الفرع</span>}
+                    <div className="o-meta">آخر عد: {shortDate(last)}</div>
+                    <form id={fid} action={saveProduct}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="name" value={p.name} />
+                      <input type="hidden" name="min_qty" value={p.min_qty} />
+                      {p.active && <input type="hidden" name="active" value="on" />}
+                    </form>
+                  </td>
+                  <td className="num">
+                    <div className="o-row" style={{ flexWrap: "nowrap" }}>
+                      <input form={fid} type="number" name="price" min={0} defaultValue={p.price} aria-label="السعر" />
+                      <button form={fid} className={`btn sm ${p.pending ? "pri" : ""}`} type="submit">{p.pending ? "اعتمد" : "حفظ"}</button>
+                    </div>
+                  </td>
+                  <td>
+                    <select form={fid} name="branch_id" defaultValue={p.branch_id} aria-label="الفرع">
+                      {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                    <div className="o-meta">{br.get(p.branch_id)?.delivery_company ?? ""}</div>
+                  </td>
+                  <td>
+                    <VariantChips variants={p.variants} min={p.min_qty} />
+                    {!!p.variants.length && (
+                      <details style={{ marginTop: 6 }}>
+                        <summary className="o-meta" style={{ cursor: "pointer" }}>تصحيح الستوك</summary>
+                        <form action={correctStock} className="o-row" style={{ marginTop: 8 }}>
+                          <select name="variant_id" aria-label="اللون والمقاس">{p.variants.map((v) => <option key={v.id} value={v.id}>{variantLabel(v)} ({v.stock})</option>)}</select>
+                          <input type="number" name="delta" required placeholder="+ / −" aria-label="زيد ولا نقص" />
+                          <input type="text" name="note" required placeholder="السبب" aria-label="السبب" />
+                          <button className="btn sm" type="submit">صحح</button>
+                        </form>
+                      </details>
+                    )}
+                  </td>
+                </tr>
+              );
+            }) : <tr><td colSpan={4} className="empty">ما كاين حتى منتج. الفروع يزيدو السلعة من "عد الستوك اليومي"، ولا زيد انت من لتحت.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <p className="sub" style={{ marginTop: 10 }}>كل منتج مربوط بفرع واحد. كي تتأكد الطلبية، تروح للفرع هذا وشركة التوصيل تاعو.</p>
+
+      <details className="panel" style={{ marginTop: 14 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>زيد منتج ولا سلعة بيدك</summary>
+        <div className="grid g2" style={{ marginTop: 12 }}>
           <form action={createProduct} className="o-row">
-            <label className="f">الاسم<input type="text" name="name" required /></label>
+            <label className="f">منتج جديد<input type="text" name="name" required /></label>
             <label className="f">الفرع
               <select name="branch_id" required defaultValue="">
                 <option value="" disabled>— اختار —</option>
@@ -32,12 +78,9 @@ export default async function Products({ searchParams }: { searchParams: Sp }) {
               </select>
             </label>
             <label className="f">السعر (دج)<input type="number" name="price" min={0} required /></label>
-            <label className="f">تنبيه كي يبقاو<input type="number" name="min_qty" min={0} defaultValue={3} /></label>
+            <input type="hidden" name="min_qty" value={3} />
             <button className="btn pri" type="submit">زيد</button>
           </form>
-        </section>
-        <section className="panel">
-          <h3>زيد للستوك</h3>
           <form action={managerAddStock} className="o-row">
             <label className="f">الفرع
               <select name="branch_id" required defaultValue="">
@@ -50,50 +93,10 @@ export default async function Products({ searchParams }: { searchParams: Sp }) {
             <label className="f">اللون<input type="text" name="color" required /></label>
             <label className="f">المقاس<input type="text" name="size" required /></label>
             <label className="f">الكمية<input type="number" name="qty" min={1} defaultValue={1} required /></label>
-            <button className="btn pri" type="submit">زيد</button>
+            <button className="btn pri" type="submit">زيد للستوك</button>
           </form>
-        </section>
-      </div>
-
-      {branches.map((b) => {
-        const list = products.filter((p) => p.branch_id === b.id);
-        if (!list.length) return null;
-        return (
-          <section key={b.id} style={{ marginBottom: 18 }}>
-            <h3>{b.name}</h3>
-            <div className="grid">
-              {list.map((p) => (
-                <div className="order" key={p.id}>
-                  <form action={saveProduct} className="o-row">
-                    <input type="hidden" name="id" value={p.id} />
-                    <label className="f">الاسم<input type="text" name="name" defaultValue={p.name} required /></label>
-                    <label className="f">السعر (دج)<input type="number" name="price" min={0} defaultValue={p.price} /></label>
-                    <label className="f">تنبيه كي يبقاو<input type="number" name="min_qty" min={0} defaultValue={p.min_qty} /></label>
-                    <label className="o-row" style={{ gap: 6 }}><input type="checkbox" name="active" defaultChecked={p.active} /> نشط</label>
-                    {p.pending && <span className="chip warn">ينتظر السعر</span>}
-                    <button className="btn sm pri" type="submit">{p.pending ? "اعتمد" : "حفظ"}</button>
-                    <span className="o-meta">آخر تبديل {shortDate(p.updated_at)}</span>
-                  </form>
-                  <VariantChips variants={p.variants} min={p.min_qty} />
-                  {!!p.variants.length && (
-                    <details>
-                      <summary className="o-meta" style={{ cursor: "pointer" }}>تصحيح الستوك</summary>
-                      <form action={correctStock} className="o-row" style={{ marginTop: 8 }}>
-                        <label className="f">اللون والمقاس
-                          <select name="variant_id">{p.variants.map((v) => <option key={v.id} value={v.id}>{variantLabel(v)} ({v.stock})</option>)}</select>
-                        </label>
-                        <label className="f">زيد (+) ولا نقص (−)<input type="number" name="delta" required /></label>
-                        <label className="f">السبب<input type="text" name="note" required /></label>
-                        <button className="btn sm" type="submit">صحح</button>
-                      </form>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      })}
+        </div>
+      </details>
     </>
   );
 }

@@ -6,7 +6,7 @@ import { back, dbError, int, str } from "./util";
 
 export async function addStock(form: FormData) {
   const me = await requireRole("branch");
-  const P = "/branch";
+  const P = "/branch/count";
   const sb = await supabaseServer();
   const { error } = await sb.rpc("add_stock", {
     p_branch: me.branch_id, p_product_name: str(form, "product_name"),
@@ -20,7 +20,7 @@ export async function addStock(form: FormData) {
 // العد: كل input اسمو c_<variant_id>
 export async function submitCount(form: FormData) {
   await requireRole("branch");
-  const P = "/branch";
+  const P = "/branch/count";
   const lines: { variant_id: string; counted: number }[] = [];
   for (const [k, v] of form.entries()) {
     if (!k.startsWith("c_")) continue;
