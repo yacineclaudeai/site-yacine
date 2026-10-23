@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { guessMapping, mapRows, matchProduct, money, parseCsv, parseSheetUrl, SheetError } from "../../lib/sheets/core";
+import { csvUrls, guessMapping, mapRows, matchProduct, money, parseCsv, parseSheetUrl, SheetError, sheetProducts, table } from "../../lib/sheets/core";
 
 const products = [{ id: "a1", name: "بيجامة قطيفة" }, { id: "a2", name: "روب سبور" }, { id: "a3", name: "Pyjama à fleurs" }];
 
 describe("sheet url + csv", () => {
   it("reads id and gid", () => {
-    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/AbC_1-x/edit#gid=123")).toEqual({ id: "AbC_1-x", gid: "123" });
-    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/AbC/edit")).toEqual({ id: "AbC", gid: "0" });
+    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/1AbC_1-xyzABCDEF/edit#gid=123")).toEqual({ id: "1AbC_1-xyzABCDEF", gid: "123", published: false });
+    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/1AbCdefghijk/edit?usp=sharing")).toEqual({ id: "1AbCdefghijk", gid: null, published: false });
+    expect(parseSheetUrl("https://docs.google.com/spreadsheets/u/0/d/1AbCdefghijk/edit?gid=5#gid=5")?.gid).toBe("5");
+    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/e/2PACX-1vAbc/pubhtml")).toEqual({ id: "2PACX-1vAbc", gid: null, published: true });
     expect(parseSheetUrl("https://evil.com/spreadsheets/d/AbC")).toBeNull();
+  });
+  it("builds export urls (no gid = first tab)", () => {
+    expect(csvUrls({ id: "X", gid: null, published: false })[0]).toBe("https://docs.google.com/spreadsheets/d/X/export?format=csv");
+    expect(csvUrls({ id: "X", gid: "7", published: false })[1]).toContain("gviz/tq?tqx=out:csv&gid=7");
+    expect(csvUrls({ id: "P", gid: null, published: true })).toEqual(["https://docs.google.com/spreadsheets/d/e/P/pub?output=csv"]);
   });
   it("parses quotes, commas and newlines", () => {
     expect(parseCsv('a,b\r\n"x, y","he said ""hi""\nok"\n')).toEqual([["a", "b"], ["x, y", 'he said "hi"\nok']]);
@@ -31,6 +38,7 @@ describe("matching", () => {
     expect(m).toMatchObject({ ref: "Order ID", name: "Full name", phone: "Phone", delivery_price: "Shipping price", price: "Price",
       total: "Total", details: "Variant", product: "Product", qty: "Quantity", notes: "Note" });
     expect(Object.values(m)).not.toContain("Country");
+    expect(guessMapping(["Type de livraison", "Prix livraison"], {})).toEqual({ delivery_type: "Type de livraison", delivery_price: "Prix livraison" });
     expect(new Set(Object.values(m)).size).toBe(Object.values(m).length);
   });
 });
@@ -62,5 +70,22 @@ describe("mapRows", () => {
     const a = mapRows(1, rows, noRef, 2, products).ok[0].key, b = mapRows(1, rows, noRef, 2, products).ok[0].key;
     expect(a).toBe(b);
     expect(a).toHaveLength(32);
+  });
+});
+
+describe("real-life sheets", () => {
+  it("finds the header row under a title and names empty/duplicate headers", () => {
+    const t = table([["طلبات أكتوبر"], [], ["Nom", "", "Prix", "Prix"], ["a", "b", "1", "2"]]);
+    expect(t.headerRow).toBe(3);
+    expect(t.headers).toEqual(["Nom", "عمود B", "Prix", "Prix (2)"]);
+  });
+  it("uses the manager's product links", () => {
+    const rows = [["Nom", "Tel", "Produit"], ["سارة", "0550123456", "Pyjama motif coeur"], ["علي", "0550123457", "Pyjama motif coeur"], ["منى", "0550123458", "شي حاجة"]];
+    const map = { name: "Nom", phone: "Tel", product: "Produit" };
+    expect(sheetProducts(rows, map, 2)).toEqual([{ text: "Pyjama motif coeur", n: 2 }, { text: "شي حاجة", n: 1 }]);
+    const r = mapRows(1, rows, map, 2, products, { "pyjama motif coeur": "a2" });
+    expect(r.ok.map((o) => o.product_id)).toEqual(["a2", "a2"]);
+    expect(r.ok[0].details).toBe("Pyjama motif coeur");
+    expect(r.errors[0].reason).toContain("ربط المنتجات");
   });
 });

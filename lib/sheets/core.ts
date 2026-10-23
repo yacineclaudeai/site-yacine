@@ -10,15 +10,29 @@ export type Mapping = Partial<Record<Field, string>>; // اسم العمود ك�
 
 export type Source = {
   id: number; name: string; url: string | null; columns: Mapping; sync_minutes: number; active: boolean;
-  start_row: number; last_sync_at: string | null; headers: string[];
+  start_row: number; last_sync_at: string | null; headers: string[]; product_map?: Record<string, string>;
 };
 
 // ---------- الرابط ----------
-export function parseSheetUrl(url: string): { id: string; gid: string } | null {
-  const m = url.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+// يقبل: رابط التعديل (/d/ID/edit#gid=..)، رابط المشاركة (?usp=sharing)، ورابط "النشر على الويب" (/d/e/2PACX.../pub)
+export type SheetRef = { id: string; gid: string | null; published: boolean };
+export function parseSheetUrl(url: string): SheetRef | null {
+  const u = url.trim();
+  const pub = u.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+  const m = pub ?? u.match(/^https:\/\/docs\.google\.com\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/);
   if (!m) return null;
-  const gid = url.match(/[#&?]gid=(\d+)/)?.[1] ?? "0";
-  return { id: m[1], gid };
+  const gid = u.match(/[#&?]gid=(\d+)/)?.[1] ?? null;
+  return { id: m[1], gid, published: !!pub };
+}
+
+// الروابط اللي نجربوهم بالترتيب (بلا حساب خدمة)
+export function csvUrls(p: SheetRef): string[] {
+  const g = p.gid != null ? `&gid=${p.gid}` : "";
+  if (p.published) return [`https://docs.google.com/spreadsheets/d/e/${p.id}/pub?output=csv${g}`];
+  return [
+    `https://docs.google.com/spreadsheets/d/${p.id}/export?format=csv${g}`,
+    `https://docs.google.com/spreadsheets/d/${p.id}/gviz/tq?tqx=out:csv${g}`,
+  ];
 }
 
 // ---------- CSV ----------
@@ -64,31 +78,67 @@ async function googleToken(): Promise<string | null> {
   return (await r.json()).access_token as string;
 }
 
+const NOT_SHARED = "الشيت ماشي مشارك. افتح الشيت ← Partager (Share) ← \"Accès général\" ← \"Tous les utilisateurs disposant du lien\" ← Lecteur، وعاود جرب.";
+
+async function get(url: string, init?: RequestInit) {
+  try {
+    return await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(25_000), ...init });
+  } catch (e) {
+    const why = e instanceof Error && e.name === "TimeoutError" ? "جوجل طول بزاف وما جاوبش" : "ما قدرتش نوصل لجوجل";
+    throw new SheetError(`${why}. عاود جرب بعد دقيقة.`);
+  }
+}
+
 export async function fetchRows(url: string): Promise<string[][]> {
   const p = parseSheetUrl(url);
-  if (!p) throw new SheetError("الرابط ماشي رابط شيت جوجل.");
-  const token = await googleToken();
+  if (!p) throw new SheetError("هذا ماشي رابط شيت جوجل. لازم يبدا بـ https://docs.google.com/spreadsheets/d/ ... (انسخو من فوق في المتصفح كي يكون الشيت محلول).");
+  const token = p.published ? null : await googleToken();
   if (token) {
     const auth = { authorization: `Bearer ${token}` };
-    const meta = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${p.id}?fields=sheets.properties(sheetId,title)`, { headers: auth });
+    const meta = await get(`https://sheets.googleapis.com/v4/spreadsheets/${p.id}?fields=sheets.properties(sheetId,title)`, { headers: auth });
     if (meta.status === 403 || meta.status === 404) {
-      throw new SheetError(`الموقع ما يقدرش يدخل للشيت. شارك الشيت مع ${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL} (Viewer).`);
+      throw new SheetError(`الموقع ما يقدرش يدخل للشيت. شارك الشيت مع ${process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL} كـLecteur (Viewer).`);
     }
+    if (meta.status === 400) throw new SheetError("هذا الملف Excel ماشي Google Sheet. افتحو ← Fichier ← Enregistrer au format Google Sheets، وحط الرابط الجديد.");
     if (!meta.ok) throw new SheetError(`جوجل ما جاوبش (${meta.status}).`);
     const sheets = ((await meta.json()).sheets ?? []) as { properties: { sheetId: number; title: string } }[];
-    const tab = sheets.find((s) => String(s.properties.sheetId) === p.gid) ?? sheets[0];
+    const tab = (p.gid != null && sheets.find((s) => String(s.properties.sheetId) === p.gid)) || sheets[0];
     if (!tab) throw new SheetError("الشيت فارغ.");
     const range = encodeURIComponent(`'${tab.properties.title.replace(/'/g, "''")}'`);
-    const v = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${p.id}/values/${range}?majorDimension=ROWS`, { headers: auth });
+    const v = await get(`https://sheets.googleapis.com/v4/spreadsheets/${p.id}/values/${range}?majorDimension=ROWS`, { headers: auth });
     if (!v.ok) throw new SheetError(`ما قدرتش نقرا الورقة (${v.status}).`);
     return ((await v.json()).values ?? []) as string[][];
   }
-  const r = await fetch(`https://docs.google.com/spreadsheets/d/${p.id}/export?format=csv&gid=${p.gid}`, { redirect: "follow" });
-  const type = r.headers.get("content-type") ?? "";
-  if (!r.ok || type.includes("text/html")) {
-    throw new SheetError("الشيت ماشي مشارك. يا حط حساب الخدمة تاع جوجل، يا خلي الشيت \"أي واحد عندو الرابط يقدر يشوف\".");
+  if (/[?&]rtpof=true/.test(url)) {
+    throw new SheetError("هذا الملف Excel (.xlsx) ماشي Google Sheet، جوجل ما يعطيهش للموقع. افتحو ← Fichier ← Enregistrer au format Google Sheets، وحط الرابط تاع النسخة الجديدة.");
   }
-  return parseCsv(await r.text());
+  let last = "";
+  for (const u of csvUrls(p)) {
+    const r = await get(u);
+    const type = r.headers.get("content-type") ?? "";
+    if (r.ok && !type.includes("text/html")) return parseCsv(await r.text());
+    if (r.status === 404) last = "الشيت ما كانش: الرابط غالط ولا الشيت تمحى. انسخ الرابط من جديد.";
+    else if (r.status === 400) last = "الورقة اللي في الرابط (gid) ما كانتش. افتح الورقة اللي فيها الطلبات وانسخ الرابط من فوق.";
+    else if (r.status === 401 || r.status === 403 || type.includes("text/html")) last = NOT_SHARED;
+    else last = `جوجل رجع خطأ (${r.status}). عاود جرب.`;
+  }
+  throw new SheetError(last || NOT_SHARED);
+}
+
+// ---------- الجدول ----------
+// سطر العناوين: أول سطر فيه 2 خانات معمرين ولا أكثر (من 10 الأولين). عنوان فارغ ولا معاود ياخذ اسم.
+const letter = (i: number) => (i < 26 ? "" : String.fromCharCode(64 + Math.floor(i / 26))) + String.fromCharCode(65 + (i % 26));
+export function table(rows: string[][]) {
+  let h = rows.slice(0, 10).findIndex((r) => r.filter((c) => String(c ?? "").trim()).length >= 2);
+  if (h < 0) h = 0;
+  const seen = new Map<string, number>();
+  const headers = (rows[h] ?? []).map((c, i) => {
+    let t = String(c ?? "").trim() || `عمود ${letter(i)}`;
+    const n = (seen.get(t) ?? 0) + 1; seen.set(t, n);
+    if (n > 1) t = `${t} (${n})`;
+    return t;
+  });
+  return { headerRow: h + 1, headers };
 }
 
 // ---------- التطابق ----------
@@ -116,8 +166,26 @@ export function money(s: string) {
   return m ? String(Number(m[0])) : "";
 }
 
-export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, startRow: number, products: { id: string; name: string }[]) {
-  const headers = (rows[0] ?? []).map((h) => h.trim());
+export const prodKey = (s: string) => norm(s).slice(0, 200);
+
+// المنتجات المختلفة اللي في عمود المنتج (للربط مع منتجات الموقع)
+export function sheetProducts(rows: string[][], mapping: Mapping, startRow: number) {
+  const { headerRow, headers } = table(rows);
+  const c = mapping.product ? headers.indexOf(mapping.product) : -1;
+  if (c < 0) return [];
+  const count = new Map<string, { text: string; n: number }>();
+  for (let i = Math.max(headerRow, startRow - 1); i < rows.length; i++) {
+    const t = String(rows[i][c] ?? "").trim();
+    if (!t) continue;
+    const k = prodKey(t), e = count.get(k) ?? { text: t, n: 0 };
+    e.n++; count.set(k, e);
+  }
+  return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 150);
+}
+
+export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, startRow: number, products: { id: string; name: string }[],
+  productMap: Record<string, string> = {}) {
+  const { headerRow, headers } = table(rows);
   const col = (f: Field) => (mapping[f] ? headers.indexOf(mapping[f]!) : -1);
   const missing = (["name", "phone", "product"] as Field[]).filter((f) => col(f) < 0);
   if (missing.length) {
@@ -127,14 +195,16 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
   const used = new Set(FIELDS.map(col).filter((i) => i >= 0));
   const others = headers.map((h, i) => [h, i] as const).filter(([h, i]) => h && !used.has(i));
   const ok: ImportRow[] = [], errors: { row: number; reason: string }[] = [];
-  for (let i = Math.max(1, startRow - 1); i < rows.length; i++) {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  for (let i = Math.max(headerRow, startRow - 1); i < rows.length; i++) {
     const r = rows[i], get = (f: Field) => (col(f) >= 0 ? String(r[col(f)] ?? "").trim() : "");
     const rowNo = i + 1, name = get("name"), phone = get("phone"), prod = get("product");
     if (!name && !phone && !prod) continue; // سطر فارغ
-    if (digits(phone).length < 9) { errors.push({ row: rowNo, reason: `الهاتف ماشي صحيح: "${phone}"` }); continue; }
+    if (digits(phone).length < 9 || digits(phone).length > 13) { errors.push({ row: rowNo, reason: `الهاتف ماشي صحيح: "${phone}"` }); continue; }
     if (!name) { errors.push({ row: rowNo, reason: "الاسم فارغ" }); continue; }
-    const p = matchProduct(prod, products);
-    if (!p) { errors.push({ row: rowNo, reason: `المنتج "${prod}" ما لقيتوش في الموقع` }); continue; }
+    if (!prod) { errors.push({ row: rowNo, reason: "المنتج فارغ" }); continue; }
+    const p = byId.get(productMap[prodKey(prod)] ?? "") ?? matchProduct(prod, products);
+    if (!p) { errors.push({ row: rowNo, reason: `المنتج "${prod.slice(0, 60)}" ما تربطش بمنتج في الموقع (شوف "ربط المنتجات")` }); continue; }
     const qty = Math.min(10, Math.max(1, parseInt(digits(get("qty")) || "1", 10)));
     const ref = get("ref");
     // رقم الطلبية + الهاتف هو البصمة (يصبر حتى لو تبدلت خانة أخرى)، وإلا بصمة القيم
@@ -150,26 +220,59 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
 }
 
 // ---------- التزامن ----------
+const reason = (e: unknown) =>
+  e instanceof SheetError ? e.message : `صرا مشكل ما كانش متوقع: ${e instanceof Error ? e.message : String(e)}`.slice(0, 400);
+
+async function prepare(admin: SupabaseClient, s: Source) {
+  if (!s.url) throw new SheetError("ما كاينش رابط. حط رابط الشيت واحفظ.");
+  const [rows, { data: products, error }] = await Promise.all([
+    fetchRows(s.url),
+    admin.from("products").select("id, name").eq("active", true).eq("pending", false),
+  ]);
+  if (error) throw new SheetError("ما قدرتش نقرا المنتجات من قاعدة البيانات: " + error.message);
+  if (!products?.length) throw new SheetError("ما كاين حتى منتج مفعل في الموقع. زيد المنتجات قبل (تبويب المنتجات والستوك).");
+  return { rows, products, ...mapRows(s.id, rows, s.columns ?? {}, s.start_row, products, s.product_map ?? {}) };
+}
+
 // admin = client بالـservice role (السيرفر برك)
 export async function syncSource(admin: SupabaseClient, s: Source) {
   const done = async (patch: Record<string, unknown>) =>
     admin.from("sheet_sources").update({ last_sync_at: new Date().toISOString(), ...patch }).eq("id", s.id);
   try {
-    if (!s.url) throw new SheetError("ما كاينش رابط.");
-    const [rows, { data: products }] = await Promise.all([
-      fetchRows(s.url),
-      admin.from("products").select("id, name").eq("active", true).eq("pending", false),
-    ]);
-    const { headers, ok, errors } = mapRows(s.id, rows, s.columns ?? {}, s.start_row, products ?? []);
-    const { data: n, error } = ok.length ? await admin.rpc("import_sheet_orders", { p_source: s.id, p_rows: ok }) : { data: 0, error: null };
-    if (error) throw new SheetError("ما قدرتش نحفظ الطلبات: " + error.message);
-    const msg = `${n} طلبية جديدة` + (errors.length ? `، ${errors.length} سطر فيه مشكل` : "");
-    await done({ headers, last_status: errors.length ? "warn" : "ok", last_message: msg, last_count: n, last_errors: errors.slice(-20) });
-    return { imported: n as number, errors: errors.length };
+    const { ok, errors } = await prepare(admin, s);
+    let n = 0;
+    for (let i = 0; i < ok.length; i += 200) { // دفعات باش ما يطولش
+      const { data, error } = await admin.rpc("import_sheet_orders", { p_source: s.id, p_rows: ok.slice(i, i + 200) });
+      if (error) {
+        throw new SheetError(/function|does not exist|schema cache/i.test(error.message)
+          ? "قاعدة البيانات ناقصة: الصق ملف SQL تاع ربط الشيت في Supabase." : "ما قدرتش نحفظ الطلبات: " + error.message);
+      }
+      n += data as number;
+    }
+    const msg = `${n} طلبية جديدة` + (errors.length ? `، ${errors.length} سطر ما دخلش` : "");
+    await done({ last_status: errors.length ? "warn" : "ok", last_message: msg, last_count: n, last_errors: errors.slice(0, 50) });
+    return { imported: n, errors: errors.length };
   } catch (e) {
-    const msg = e instanceof SheetError ? e.message : "صرا مشكل في القراية، عاود جرب.";
+    const msg = reason(e);
     await done({ last_status: "error", last_message: msg, last_count: 0 });
     return { imported: 0, errors: 1, message: msg };
+  }
+}
+
+// تجربة بلا استيراد: يقرا، يطابق، ويقول قداش يدخل وعلاه الباقي لا
+export async function testSource(admin: SupabaseClient, s: Source) {
+  try {
+    const { rows, ok, errors, headers } = await prepare(admin, s);
+    const { data: seen } = await admin.from("sheet_imports").select("row_key").eq("source_id", s.id);
+    const old = new Set((seen ?? []).map((r) => r.row_key as string));
+    const fresh = ok.filter((r) => !old.has(r.key)).length;
+    return { ok: true as const, lines: [
+      `✓ الموقع دخل للشيت وقرا ${rows.length} سطر و${headers.length} عمود.`,
+      `✓ ${ok.length} سطر صحيح: ${fresh} جديد يدخل في التزامن الجاي، و${ok.length - fresh} دخل من قبل.`,
+      errors.length ? `✗ ${errors.length} سطر ما يدخلش (السبب تحت).` : "✓ حتى سطر ما فيه مشكل.",
+    ], errors };
+  } catch (e) {
+    return { ok: false as const, lines: [`✗ ${reason(e)}`], errors: [] };
   }
 }
 
@@ -190,8 +293,8 @@ export async function syncDue(admin: SupabaseClient) {
 // الترتيب مهم: الخانات الدقيقة قبل (سعر التوصيل قبل السعر، رقم الطلبية قبل الهاتف)
 const GUESS: [Field, string[]][] = [
   ["ref", ["order id", "order number", "order no", "commande", "رقم الطلب", "رقم الطلبية", "id"]],
-  ["delivery_price", ["shipping", "livraison", "delivery price", "frais", "سعر التوصيل", "التوصيل"]],
-  ["delivery_type", ["delivery type", "type de livraison", "stopdesk", "stop desk", "نوع التوصيل"]],
+  ["delivery_type", ["delivery type", "type de livraison", "type livraison", "mode de livraison", "stopdesk", "stop desk", "نوع التوصيل"]],
+  ["delivery_price", ["shipping", "prix livraison", "prix de livraison", "frais", "delivery price", "سعر التوصيل", "livraison", "التوصيل"]],
   ["discount", ["discount", "remise", "réduction", "promo", "تخفيض"]],
   ["total", ["total", "السعر الكلي", "المجموع", "الإجمالي"]],
   ["name", ["full name", "name", "nom", "client", "الاسم", "اسم"]],
