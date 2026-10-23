@@ -60,9 +60,25 @@ reset role;
 set local role service_role;
 select tests.eq(import_sheet_orders((select src from rows), (select r from rows)), 2, 'server imports 2 rows');
 select tests.eq(import_sheet_orders((select src from rows), (select r from rows)), 0, 're-sync imports nothing (no duplicates)');
+select tests.eq(cardinality(sheet_keys((select src from rows))), 2, 'server can list imported keys');
+select tests.eq(import_sheet_orders((select src from rows), jsonb_build_array(jsonb_build_object('key', 'h3', 'row', 4, 'name', 'زبونة بلا منتج',
+  'phone', '0551000003', 'product_id', '', 'product_name', 'Pyjama Motif  Coeur', 'qty', 1))), 1, 'row with unlinked product still imports');
+reset role;
+select tests.ok((select product_id is null from orders where phone = '0551000003'), 'unlinked order has no product');
+set local role authenticated;
+select tests.login('conf@test');
+select tests.eq((select count(*) from orders where phone = '0551000003'), 0, 'confirmer does not see unlinked orders');
+reset role;
+select tests.login('manager@test');
+set local role authenticated;
+select tests.throws($$select apply_product_map(1, '{}')$$, 'manager browser session cannot call apply_product_map directly');
+select tests.throws($$select sheet_keys(1)$$, 'manager browser session cannot list keys directly');
+reset role;
+set local role service_role;
+select tests.eq(apply_product_map((select src from rows), '{"pyjama motif coeur": "00000000-0000-0000-0000-0000000000a1"}'), 1, 'linking the product fixes old unlinked orders');
 reset role;
 
-select tests.eq((select imported_total from sheet_sources where id = (select src from rows)), 2, 'imported_total counted once');
+select tests.eq((select imported_total from sheet_sources where id = (select src from rows)), 3, 'imported_total counted once');
 select tests.ok((select status = 'new' and address = 'حي 100 مسكن' and delivery_type = 'المنزل' and total_price = 6500
                    and delivery_price = 700 and unit_price = 2900 and qty = 2 and details like 'couleur%'
                  from orders where phone = '0551000001'), 'sheet fields land on the order');
@@ -73,7 +89,7 @@ select tests.ok((select kind = 'abandoned' and sheet_ref = '49462' and extra = '
 -- ===== المؤكدة تشوف الطلبية، بلا المصدر =====
 set local role authenticated;
 select tests.login('conf@test');
-select tests.eq((select count(*) from orders where phone in ('0551000001', '0551000002')), 2, 'confirmer gets imported orders in her queue');
+select tests.eq((select count(*) from orders where phone in ('0551000001', '0551000002', '0551000003')), 3, 'confirmer gets imported orders in her queue (after linking)');
 select tests.eq((select count(*) from order_meta), 0, 'confirmer cannot see source/abandoned/other columns');
 select tests.eq((select count(*) from sheet_imports), 0, 'confirmer cannot see sheet_imports');
 select tests.eq((select count(*) from sheet_sources), 0, 'confirmer cannot see sheet sources');

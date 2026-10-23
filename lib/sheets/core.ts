@@ -204,8 +204,8 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
     if (digits(phone).length < 9 || digits(phone).length > 13) { errors.push({ row: rowNo, reason: `الهاتف ماشي صحيح: "${phone}"` }); continue; }
     if (!name) { errors.push({ row: rowNo, reason: "الاسم فارغ" }); continue; }
     if (!prod) { errors.push({ row: rowNo, reason: "المنتج فارغ" }); continue; }
-    const p = byId.get(productMap[prodKey(prod)] ?? "") ?? matchProduct(prod, products);
-    if (!p) { errors.push({ row: rowNo, reason: `المنتج "${prod.slice(0, 60)}" ما تربطش بمنتج في الموقع (شوف "ربط المنتجات")` }); continue; }
+    // منتج ما تربطش: الطلبية تدخل عند المدير بالاسم تاع الشيت، وتتربط كي يربطو
+    const p = byId.get(productMap[prodKey(prod)] ?? "") ?? matchProduct(prod, products) ?? { id: "", name: prod.slice(0, 200) };
     const qty = Math.min(10, Math.max(1, parseInt(digits(get("qty")) || "1", 10)));
     const ref = get("ref");
     // رقم الطلبية + الهاتف هو البصمة (يصبر حتى لو تبدلت خانة أخرى)، وإلا بصمة القيم
@@ -213,7 +213,7 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
       : createHash("sha256").update([sourceId, norm(name), digits(phone), norm(prod), qty, norm(get("date"))].join("|")).digest("hex").slice(0, 32);
     const extra = others.map(([h, j]) => [h, String(r[j] ?? "").trim()]).filter(([, v]) => v).map(([h, v]) => `${h}: ${v}`).join(" | ");
     ok.push({ key, row: rowNo, ref, date: get("date"), name, phone, address: get("address"), wilaya: get("wilaya"), commune: get("commune"),
-      delivery_type: get("delivery_type"), product_id: p.id, product_name: p.name, details: get("details") || (norm(prod) !== norm(p.name) ? prod : ""),
+      delivery_type: get("delivery_type"), product_id: p.id, product_name: p.name, details: get("details") || (p.id && norm(prod) !== norm(p.name) ? prod : ""),
       qty, price: money(get("price")), delivery_price: money(get("delivery_price")), discount: money(get("discount")),
       total: money(get("total")), notes: get("notes"), extra: extra.slice(0, 2000) });
   }
@@ -224,8 +224,8 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
 const reason = (e: unknown) =>
   e instanceof SheetError ? e.message : `صرا مشكل ما كانش متوقع: ${e instanceof Error ? e.message : String(e)}`.slice(0, 400);
 
-// حماية: بزاف طلبيات مرة وحدة = غالبا طلبات قدام. ما ندخلوهمش للمؤكدات بلا ما يقرر المدير.
-export const MAX_BATCH = 300;
+// في كل تزامن ندخلو 1000 طلبية على الأكثر، والباقي في التزامن الجاي (باش ما يطولش)
+export const MAX_BATCH = 1000;
 
 // تجميع الأسباب: "المنتج ... ما تربطش" × 25000
 export function summarize(errors: { reason: string }[]) {
@@ -253,32 +253,38 @@ async function prepare(admin: SupabaseClient, s: Source) {
     if (!product_map[k] && m) product_map[k] = m.id;
   }
   await admin.from("sheet_sources").update({ product_texts: texts, product_map }).eq("id", s.id);
-  return { rows, products, ...mapRows(s.id, rows, s.columns ?? {}, s.start_row, products, product_map) };
+  return { rows, products, product_map, ...mapRows(s.id, rows, s.columns ?? {}, s.start_row, products, product_map) };
 }
 
-const tooMany = (n: number) =>
-  `كاين ${n} طلبية ما دخلتش من قبل، هذا بزاف مرة وحدة (غالبا طلبات قدام). ما دخلت والو باش ما نعمروش المؤكدات. ` +
-  `إذا هوما قدام: علّم "ما تدخلش الطلبات القدام" واضغط "اقرا الشيت". إذا تحب تدخلهم، بدل "نبداو من السطر" للسطر اللي تحب تبدا منو.`;
+async function importedKeys(admin: SupabaseClient, id: number) {
+  const { data, error } = await admin.rpc("sheet_keys", { p_source: id });
+  if (error) throw new SheetError(/function|does not exist|schema cache/i.test(error.message)
+    ? "قاعدة البيانات ناقصة: الصق آخر ملف SQL تاع ربط الشيت في Supabase." : "ما قدرتش نقرا الطلبات اللي دخلو: " + error.message);
+  return new Set((data ?? []) as string[]);
+}
+
+const linkedMap = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([, v]) => v));
 
 // admin = client بالـservice role (السيرفر برك)
 export async function syncSource(admin: SupabaseClient, s: Source) {
   const done = async (patch: Record<string, unknown>) =>
     admin.from("sheet_sources").update({ last_sync_at: new Date().toISOString(), ...patch }).eq("id", s.id);
   try {
-    const { ok, errors } = await prepare(admin, s);
-    if (ok.length - (s.imported_total ?? 0) > MAX_BATCH) throw new SheetError(tooMany(ok.length - (s.imported_total ?? 0)));
+    const { ok, errors, product_map } = await prepare(admin, s);
+    const keys = await importedKeys(admin, s.id);
+    const fresh = ok.filter((r) => !keys.has(r.key)), batch = fresh.slice(0, MAX_BATCH);
     let n = 0;
-    for (let i = 0; i < ok.length; i += 200) { // دفعات باش ما يطولش
-      const { data, error } = await admin.rpc("import_sheet_orders", { p_source: s.id, p_rows: ok.slice(i, i + 200) });
-      if (error) {
-        throw new SheetError(/function|does not exist|schema cache/i.test(error.message)
-          ? "قاعدة البيانات ناقصة: الصق ملف SQL تاع ربط الشيت في Supabase." : "ما قدرتش نحفظ الطلبات: " + error.message);
-      }
+    for (let i = 0; i < batch.length; i += 250) {
+      const { data, error } = await admin.rpc("import_sheet_orders", { p_source: s.id, p_rows: batch.slice(i, i + 250) });
+      if (error) throw new SheetError("ما قدرتش نحفظ الطلبات: " + error.message);
       n += data as number;
     }
-    const msg = `${n} طلبية جديدة` + (errors.length ? `، ${errors.length} سطر ما دخلش` : "");
-    await done({ last_status: errors.length ? "warn" : "ok", last_message: msg, last_count: n, last_errors: errors.slice(0, 50) });
-    return { imported: n, errors: errors.length };
+    await admin.rpc("apply_product_map", { p_source: s.id, p_map: linkedMap(product_map) });
+    const unlinked = fresh.filter((r) => !r.product_id).length;
+    const msg = `${n} طلبية جديدة` + (fresh.length > batch.length ? `، والباقي (${fresh.length - batch.length}) يدخلو في التزامن الجاي` : "") +
+      (unlinked ? `، منهم ${unlinked} منتجهم ما تربطش (يبانو عندك برك)` : "") + (errors.length ? `، ${errors.length} سطر فيه غلطة` : "");
+    await done({ last_status: errors.length || unlinked ? "warn" : "ok", last_message: msg, last_count: n, last_errors: errors.slice(0, 50) });
+    return { imported: n, errors: errors.length, message: undefined as string | undefined };
   } catch (e) {
     const msg = reason(e);
     await done({ last_status: "error", last_message: msg, last_count: 0 });
@@ -290,14 +296,16 @@ export async function syncSource(admin: SupabaseClient, s: Source) {
 export async function testSource(admin: SupabaseClient, s: Source) {
   try {
     const { rows, ok, errors, headers } = await prepare(admin, s);
-    const fresh = Math.max(0, ok.length - (s.imported_total ?? 0));
+    const keys = await importedKeys(admin, s.id);
+    const fresh = ok.filter((r) => !keys.has(r.key));
+    const unlinked = fresh.filter((r) => !r.product_id).length;
     const lines = [
       `✓ الموقع دخل للشيت وقرا ${rows.length} سطر و${headers.length} عمود.`,
-      s.start_row > 2 ? `• يبدا من السطر ${s.start_row} (اللي قبلو ما يدخلوش).` : `• يبدا من أول سطر: حتى الطلبات القدام يدخلو.`,
-      `${ok.length ? "✓" : "✗"} ${ok.length} طلبية صحيحة، منهم ${fresh} ما دخلوش بعد.`,
-      ...summarize(errors).slice(0, 5).map(([k, n]) => `✗ ${n} سطر: ${k}`),
+      `✓ ${ok.length} طلبية صحيحة: ${keys.size} دخلو من قبل، و${fresh.length} يدخلو في التزامن الجاي` +
+        (fresh.length > MAX_BATCH ? ` (${MAX_BATCH} في كل مرة)` : "") + ".",
+      ...(unlinked ? [`• ${unlinked} منهم منتجهم ما تربطش: يدخلو لقسم الطلبات، بصح المؤكدات ما يشوفوهمش حتى تربط المنتج (الخطوة 3) وتعطيه لمؤكدة.`] : []),
+      ...summarize(errors).slice(0, 5).map(([k, n]) => `✗ ${n} سطر ما يدخلش: ${k}`),
     ];
-    if (fresh > MAX_BATCH) lines.push(`⚠ ${tooMany(fresh)}`);
     return { ok: true as const, lines, errors };
   } catch (e) {
     return { ok: false as const, lines: [`✗ ${reason(e)}`], errors: [] };

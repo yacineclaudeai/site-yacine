@@ -152,6 +152,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                   <td>{o.commune ?? "-"}</td>
                   <td>{o.delivery_type ?? "-"}</td>
                   <td>{o.order_lines.length ? [...new Set(o.order_lines.map((l) => l.product_name))].join(" + ") : o.product_name}
+                    {!o.product_id && !o.order_lines.length && <div><a className="chip warn" href="/manager/settings">منتج ما تربطش</a></div>}
                     {!!o.order_lines.length && <div className="o-meta">{o.order_lines.map((l) => `${l.color} / ${l.size}`).join(" + ")}</div>}</td>
                   <td className="num">{o.qty}</td>
                   <td className="num">{da(o.unit_price)}</td>

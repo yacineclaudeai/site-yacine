@@ -98,7 +98,7 @@ export default function SheetSource({ x, products }: { x: SheetSourceRow; produc
         {texts.length ? (
           <>
             <div className="o-meta">الأسماء اللي في الشيت ماشي ديما كيما أسماء المنتجات في الموقع. اربط كل اسم بالمنتج تاعو مرة وحدة، والموقع يتفكرها.
-              {unlinked.length ? <> <span className="chip warn">{unlinked.length} ما تربطوش</span> (الطلبات تاعهم ما يدخلوش)</> : null}</div>
+              {unlinked.length ? <> <span className="chip warn">{unlinked.length} ما تربطوش</span> الطلبات تاعهم يدخلو لقسم الطلبات، بصح المؤكدات ما يشوفوهمش حتى تربط المنتج وتعطيه لمؤكدة (تبويب المؤكدات).</> : null}</div>
             <div className="scroll"><table>
               <thead><tr><th>المنتج في الشيت</th><th>الطلبات</th><th>المنتج في الموقع</th></tr></thead>
               <tbody>{texts.map((t, i) => (

@@ -66,7 +66,13 @@ export async function saveSource(f: FormData) {
     url: url || null, columns, ...(f.has("prod_text_0") ? { product_map } : {}), sync_minutes: sync >= 1 && sync <= 1440 ? sync : 5, active: f.get("active") === "on",
     ...(int(f, "start_row") >= 2 ? { start_row: int(f, "start_row") } : {}),
   }).eq("id", int(f, "id"));
-  await done(error, "تحفظ الشيت.");
+  // الطلبات اللي دخلو بلا منتج تتربط ذركا
+  let linked = 0;
+  if (!error && Object.keys(product_map).length) {
+    const { data } = await supabaseAdmin().rpc("apply_product_map", { p_source: int(f, "id"), p_map: product_map });
+    linked = (data as number) ?? 0;
+  }
+  await done(error, "تحفظ الشيت." + (linked ? ` ${linked} طلبية تربطت بالمنتج تاعها.` : ""));
 }
 
 export async function addSource() {

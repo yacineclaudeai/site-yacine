@@ -52,15 +52,17 @@ describe("mapRows", () => {
     ["49464", "منى", "0661000000", "منتج ما كانش", "1", "", ""],
   ];
   const map = { ref: "رقم الطلبية", name: "الاسم", phone: "الهاتف", product: "المنتج", qty: "الكمية", total: "السعر الكلي" };
-  it("imports good rows, skips blanks, reports bad ones", () => {
+  it("imports good rows, skips blanks, reports bad ones, keeps unknown products unlinked", () => {
     const r = mapRows(1, rows, map, 2, products);
-    expect(r.ok).toHaveLength(1);
+    expect(r.ok).toHaveLength(2);
+    expect(r.ok[1]).toMatchObject({ row: 5, product_id: "", product_name: "منتج ما كانش" });
     expect(r.ok[0]).toMatchObject({ row: 2, product_id: "a3", qty: 2, total: "6500", extra: "Country: Algeria",
       details: "item_title: Pyjama à fleurs couleur: Rouge", key: "ref:0550123456:49462" });
-    expect(r.errors.map((e) => e.row)).toEqual([4, 5]);
+    expect(r.errors.map((e) => e.row)).toEqual([4]);
   });
   it("start row skips old orders", () => {
     expect(mapRows(1, rows, map, 6, products).ok).toHaveLength(0);
+    expect(mapRows(1, rows, map, 5, products).ok).toHaveLength(1);
   });
   it("needs name, phone and product", () => {
     expect(() => mapRows(1, rows, { name: "الاسم" }, 2, products)).toThrow(SheetError);
@@ -84,9 +86,10 @@ describe("real-life sheets", () => {
     const map = { name: "Nom", phone: "Tel", product: "Produit" };
     expect(sheetProducts(rows, map)).toEqual([{ text: "Pyjama motif coeur", n: 2 }, { text: "شي حاجة", n: 1 }]);
     const r = mapRows(1, rows, map, 2, products, { "pyjama motif coeur": "a2" });
-    expect(r.ok.map((o) => o.product_id)).toEqual(["a2", "a2"]);
+    expect(r.ok.map((o) => o.product_id)).toEqual(["a2", "a2", ""]);
     expect(r.ok[0].details).toBe("Pyjama motif coeur");
-    expect(r.errors[0].reason).toContain("ربط المنتجات");
+    expect(r.ok[2].product_name).toBe("شي حاجة");
+    expect(r.errors).toHaveLength(0);
   });
 });
 
