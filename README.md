@@ -12,7 +12,7 @@
 - كل تبديل في الستوك والدراهم والحسابات يتسجل في `audit_log`.
 
 ## التقنية
-Next.js 15 + TypeScript، Supabase (Postgres + Auth + RLS)، Vercel.
+Next.js 15 + TypeScript، Supabase (Postgres + Auth + RLS)، Netlify.
 - `supabase/migrations/` الجداول والصلاحيات والدوال.
 - `supabase/seed.sql` بيانات تجريبية (بلا زبائن حقيقيين).
 - `lib/accounting.ts` معادلات الحساب.
@@ -33,5 +33,5 @@ npm run dev
 
 ## الإطلاق
 1. مشروع جديد في Supabase، ومن بعد `npx supabase link` و`npx supabase db push` (بلا seed).
-2. مشروع في Vercel مربوط بالـrepo، وتحط فيه `NEXT_PUBLIC_SUPABASE_URL`، `NEXT_PUBLIC_SUPABASE_ANON_KEY`، `SUPABASE_SERVICE_ROLE_KEY`.
+2. موقع في Netlify مربوط بالـrepo (Import from GitHub)، وتحط فيه `NEXT_PUBLIC_SUPABASE_URL`، `NEXT_PUBLIC_SUPABASE_ANON_KEY`، `SUPABASE_SERVICE_ROLE_KEY`.
 3. `node scripts/create-manager.mjs` مرة وحدة باش تخلق حساب المدير.

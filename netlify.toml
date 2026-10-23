@@ -1,0 +1,7 @@
+# Netlify يتعرف على Next.js وحدو (OpenNext adapter). المفاتيح تتحط في Site configuration > Environment variables.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
