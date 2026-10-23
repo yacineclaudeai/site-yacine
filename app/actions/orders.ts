@@ -86,3 +86,31 @@ export async function assignProduct(f: FormData) {
   revalidatePath("/", "layout");
   back(P, "ok", "تحفظ التوزيع.");
 }
+
+// ---------- ليست نوار ----------
+export async function blacklistOrder(f: FormData) {
+  await requireRole("confirmer", "suivi", "manager");
+  const P = /^\/suivi$/.test(str(f, "back")) ? "/suivi" : backTo(f, "/confirm");
+  await call(P, "blacklist_order", { p_order: int(f, "id"), p_reason: str(f, "reason") }, "الرقم دخل ليست نوار، وما بقاش يوصل.");
+}
+
+export async function blacklistAdd(f: FormData) {
+  await requireRole("manager");
+  await call("/manager/blacklist", "blacklist_add",
+    { p_phone: str(f, "phone"), p_name: str(f, "name"), p_reason: str(f, "reason") }, "الرقم دخل ليست نوار.");
+}
+
+export async function blacklistRemove(f: FormData) {
+  await requireRole("manager");
+  const P = "/manager/blacklist", sb = await supabaseServer();
+  const { error } = await sb.from("blacklist").delete().eq("phone_key", str(f, "key"));
+  if (error) back(P, "err", dbError(error));
+  revalidatePath("/", "layout");
+  back(P, "ok", "تحذف الرقم من ليست نوار.");
+}
+
+// ---------- السويفي ----------
+export async function setFollow(f: FormData) {
+  await requireRole("suivi", "manager");
+  await call("/suivi", "set_follow", { p_parcel: int(f, "id"), p_follow: str(f, "follow") }, "تسجلت المتابعة.");
+}

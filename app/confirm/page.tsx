@@ -1,7 +1,7 @@
 import Flash from "@/components/Flash";
 import PiecesPicker from "@/components/PiecesPicker";
 import { StatusChip } from "@/components/OrderBits";
-import { confirmOrder, markOrder } from "@/app/actions/orders";
+import { blacklistOrder, confirmOrder, markOrder } from "@/app/actions/orders";
 import { loadCatalog, loadOrders, QUEUE } from "@/lib/orders";
 
 type Sp = Promise<{ ok?: string; err?: string }>;
@@ -38,7 +38,10 @@ export default async function Queue({ searchParams }: { searchParams: Sp }) {
                     <button className={`btn ${c}`} type="submit">{l}</button>
                   </form>
                 ))}
-                <button className="btn bad" type="button" disabled title="ليست نوار تجي في الخطوة 2">ليست نوار</button>
+                <form action={blacklistOrder}>
+                  <input type="hidden" name="id" value={o.id} /><input type="hidden" name="reason" value="من المؤكدة عند التأكيد" />
+                  <button className="btn bad" type="submit">ليست نوار</button>
+                </form>
               </div>
             </article>
           ))}

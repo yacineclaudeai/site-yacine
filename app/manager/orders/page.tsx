@@ -2,7 +2,7 @@ import Flash from "@/components/Flash";
 import { StatusChip } from "@/components/OrderBits";
 import { createOrder } from "@/app/actions/orders";
 import { loadBranches, loadProducts, loadProfiles } from "@/lib/data";
-import { loadOrders, sendDue, type Order } from "@/lib/orders";
+import { loadOrders, phoneKey, sendDue, type Order } from "@/lib/orders";
 import { supabaseServer } from "@/lib/supabase/server";
 
 type Sp = Promise<{ ok?: string; err?: string }>;
@@ -11,11 +11,13 @@ type Parcel = { order_id: number; branch_id: string; tracking: string | null; de
 export default async function Orders({ searchParams }: { searchParams: Sp }) {
   await sendDue();
   const sb = await supabaseServer();
-  const [orders, branches, products, people, { data: meta }, { data: parcels }] = await Promise.all([
+  const [orders, branches, products, people, { data: meta }, { data: parcels }, { data: bl }] = await Promise.all([
     loadOrders(), loadBranches(), loadProducts(), loadProfiles(),
     sb.from("order_meta").select("order_id, kind, source"),
     sb.from("parcels").select("order_id, branch_id, tracking, delivery_company, stub"),
+    sb.from("blacklist").select("phone_key"),
   ]);
+  const blocked = new Set((bl ?? []).map((b) => b.phone_key as string));
   const kind = new Map((meta ?? []).map((m) => [m.order_id as number, m.kind as string]));
   const br = new Map(branches.map((b) => [b.id, b]));
   const pname = new Map(people.map((p) => [p.id, p.name]));
@@ -83,7 +85,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                     <div key={id}>{br.get(id)?.name}<div className="o-meta">{br.get(id)?.delivery_company ?? "-"}</div></div>
                   ))}</td>
                   <td>{kind.get(o.id) === "abandoned" ? <span className="chip warn">متروكة</span> : "عادية"}</td>
-                  <td><StatusChip s={o.status} /></td>
+                  <td><StatusChip s={o.status} />{blocked.has(phoneKey(o.phone)) && <> <span className="chip bad">ليست نوار</span></>}</td>
                   <td>{o.confirmed_by ? pname.get(o.confirmed_by) ?? "-" : "-"}</td>
                   <td className="num">{ps.map((p) => p.tracking).join(" · ") || "-"}
                     {ps.some((p) => p.stub) && <div><span className="chip warn">تجريبي</span></div>}

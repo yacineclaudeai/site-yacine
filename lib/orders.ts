@@ -76,3 +76,8 @@ export async function confirmedCounts(people: { id: string; joined_at: string }[
   }
   return out;
 }
+
+export const FOLLOW = ["لا يرد", "رايح للمكتب", "تفاهم مع الليفرور", "أنيلاها", "غير مطابقة", "مؤجلة"] as const;
+
+// نفس phone_key() تاع القاعدة
+export const phoneKey = (p: string) => p.replace(/\D/g, "").replace(/^00213/, "0").replace(/^213/, "0");
