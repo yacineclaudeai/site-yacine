@@ -19,6 +19,12 @@ describe("sheet url + csv", () => {
   it("parses quotes, commas and newlines", () => {
     expect(parseCsv('a,b\r\n"x, y","he said ""hi""\nok"\n')).toEqual([["a", "b"], ["x, y", 'he said "hi"\nok']]);
   });
+  it("puts back the 0 that Sheets removes from phones", async () => {
+    const { fixPhone } = await import("../../lib/sheets/core");
+    expect(fixPhone("776351302")).toBe("0776351302");
+    expect(fixPhone("+213 661 22 33 44")).toBe("0661223344");
+    expect(fixPhone("0550 11 22 33")).toBe("0550 11 22 33");
+  });
   it("cleans money", () => {
     expect(money("2 900,00 DA")).toBe("2900");
     expect(money("1,500 دج")).toBe("1500");

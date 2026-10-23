@@ -116,6 +116,7 @@ form.inline{display:inline}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .otable{font-size:13px}.otable th,.otable td{white-space:nowrap;padding:7px 8px}
 .otable td.cell-long{white-space:normal;min-width:180px;max-width:280px}
+.otable td.cell-long .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .otable tr.row-warn td{background:var(--warn-bg)}
 .note.bad{background:var(--bad-bg);color:var(--bad)}
 a.chip{text-decoration:none;color:inherit}

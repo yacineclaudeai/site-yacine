@@ -159,9 +159,9 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                   <td className="num">{da(o.delivery_price)}</td>
                   <td className="num">{da(o.discount)}</td>
                   <td className="num"><b>{da(total)}</b></td>
-                  <td className="cell-long">{o.notes ?? "-"}</td>
-                  <td className="cell-long">{o.details ?? "-"}</td>
-                  <td className="cell-long o-meta">{m?.extra ?? "-"}</td>
+                  <td className="cell-long" title={o.notes ?? ""}><div className="clamp">{o.notes ?? "-"}</div></td>
+                  <td className="cell-long" title={o.details ?? ""}><div className="clamp">{o.details ?? "-"}</div></td>
+                  <td className="cell-long o-meta" title={m?.extra ?? ""}><div className="clamp">{m?.extra ?? "-"}</div></td>
                   <td>{o.confirmed_by ? pname.get(o.confirmed_by) ?? "-" : "-"}</td>
                   <td>{branchIds(o).map((id) => (
                       <div key={id}>{br.get(id)?.name}<div className="o-meta">{br.get(id)?.delivery_company ?? "-"}</div></div>

@@ -144,6 +144,11 @@ export function table(rows: string[][]) {
 // ---------- التطابق ----------
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 export const digits = (s: string) => s.replace(/\D/g, "");
+// الشيت يمحي الـ0 كي يكون الرقم "nombre": 776351302 → 0776351302. و+213 / 00213 → 0
+export function fixPhone(p: string) {
+  const d = digits(p).replace(/^00213/, "").replace(/^213(?=[567]\d{8}$)/, "");
+  return /^[567]\d{8}$/.test(d) ? "0" + d : p.trim();
+}
 
 // المنتج: الاسم بالضبط، وإلا أطول اسم منتج موجود داخل النص (مثلا "بيجامة قطيفة - أحمر L")
 export function matchProduct(text: string, products: { id: string; name: string }[]) {
@@ -212,7 +217,7 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
     const key = ref ? `ref:${digits(phone)}:${ref}`.slice(0, 120)
       : createHash("sha256").update([sourceId, norm(name), digits(phone), norm(prod), qty, norm(get("date"))].join("|")).digest("hex").slice(0, 32);
     const extra = others.map(([h, j]) => [h, String(r[j] ?? "").trim()]).filter(([, v]) => v).map(([h, v]) => `${h}: ${v}`).join(" | ");
-    ok.push({ key, row: rowNo, ref, date: get("date"), name, phone, address: get("address"), wilaya: get("wilaya"), commune: get("commune"),
+    ok.push({ key, row: rowNo, ref, date: get("date"), name, phone: fixPhone(phone), address: get("address"), wilaya: get("wilaya"), commune: get("commune"),
       delivery_type: get("delivery_type"), product_id: p.id, product_name: p.name, details: get("details") || (p.id && norm(prod) !== norm(p.name) ? prod : ""),
       qty, price: money(get("price")), delivery_price: money(get("delivery_price")), discount: money(get("discount")),
       total: money(get("total")), notes: get("notes"), extra: extra.slice(0, 2000) });
