@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 export function back(path: string, kind: "ok" | "err", msg: string): never {
-  redirect(`${path}?${kind}=${encodeURIComponent(msg)}`);
+  redirect(`${path}${path.includes("?") ? "&" : "?"}${kind}=${encodeURIComponent(msg)}`);
 }
 
 export const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();

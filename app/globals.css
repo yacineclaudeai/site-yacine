@@ -130,3 +130,7 @@ a.chip{text-decoration:none;color:inherit}
 .thf .menu a.on{background:var(--ok-bg);color:var(--ok);font-weight:600}
 .otable thead{position:sticky;top:0;z-index:5;background:var(--surface)}
 .scroll:has(.thf[open]){padding-bottom:330px}
+.thf .menu form{display:block}
+.thf .menu button{all:unset;display:block;box-sizing:border-box;width:100%;padding:6px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.thf .menu button:hover{background:var(--info-bg)}
+.thf .menu .bad{color:var(--bad)} .thf .menu a.ok{color:var(--ok);font-weight:600}

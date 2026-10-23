@@ -110,6 +110,12 @@ select confirm_order(tests.oid('زبون تجريبي 5'), tests.pieces('بيج�
 select cancel_waiting(tests.oid('زبون تجريبي 5'));
 select tests.eq(tests.stock('بيجامة قطيفة|أخضر|L'), 12, 'cancel during wait restores stock');
 select tests.ok(tests.st('زبون تجريبي 5') = 'cancelled', 'cancelled');
+select tests.throws($$select mark_order(tests.oid('زبون تجريبي 5'), 'reopen')$$, 'confirmer cannot reopen a cancelled order');
+select tests.login('manager@test');
+select mark_order(tests.oid('زبون تجريبي 5'), 'reopen');
+select tests.ok(tests.st('زبون تجريبي 5') = 'new', 'manager reopens a cancelled order');
+select mark_order(tests.oid('زبون تجريبي 5'), 'cancel');
+select tests.login('conf@test');
 
 -- طلبية فيها منتجين من فرعين (بومرداس + حمادي 1)
 select confirm_order(tests.oid('زبون تجريبي 4'), tests.pieces('جبة قطيفة|رمادي|M', 'بيجامة قطيفة|أحمر|L'));

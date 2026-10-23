@@ -1,11 +1,13 @@
+import { Fragment } from "react";
 import Flash from "@/components/Flash";
 import { StatusChip } from "@/components/OrderBits";
-import { createOrder } from "@/app/actions/orders";
+import { cancelWaiting, confirmOrder, createOrder, markOrder, sendNow } from "@/app/actions/orders";
+import PiecesPicker from "@/components/PiecesPicker";
 import { loadBranches, loadProducts, loadProfiles } from "@/lib/data";
-import { loadOrdersFiltered, ORDERS_LIMIT, phoneKey, sendDue, STATUS_GROUPS, type Order, type OrderStatus } from "@/lib/orders";
+import { loadCatalog, loadOrdersFiltered, ORDERS_LIMIT, phoneKey, sendDue, STATUS_GROUPS, type Order, type OrderStatus } from "@/lib/orders";
 import { supabaseServer } from "@/lib/supabase/server";
 
-type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string; from?: string; to?: string; prod?: string; conf?: string; wilaya?: string }>;
+type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string; from?: string; to?: string; prod?: string; conf?: string; wilaya?: string; edit?: string }>;
 type Meta = { order_id: number; kind: string; source: string | null; sheet_ref: string | null; sheet_date: string | null; extra: string | null };
 const STATUS_L: Record<string, string> = { new: "جديدة", failed1: "فاشلة 1", failed2: "فاشلة 2", failed3: "فاشلة 3", postponed: "مؤجلة",
   dup: "مكررة", cancelled: "ملغية", wait: "في الانتظار", sent: "في التوصيل", returned: "راجعة" };
@@ -27,6 +29,31 @@ function HF({ label, active, options, children }: { label: string; active?: stri
   );
 }
 
+// سهم ▾ قدام الحالة: يبدلها من الجدول (المدير)
+const QUEUE_S = ["new", "failed1", "failed2", "failed3", "postponed"];
+function StatusCell({ o, back, confirmHref, blocked }: { o: Order; back: string; confirmHref: string; blocked: boolean }) {
+  const act = (action: string, label: string, cls = "") => (
+    <form action={markOrder} key={action}><input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={o.id} />
+      <input type="hidden" name="action" value={action} /><button type="submit" className={cls}>{label}</button></form>
+  );
+  const simple = (fn: (f: FormData) => Promise<void>, label: string, cls = "") => (
+    <form action={fn} key={label}><input type="hidden" name="back" value={back} /><input type="hidden" name="id" value={o.id} />
+      <button type="submit" className={cls}>{label}</button></form>
+  );
+  const items = QUEUE_S.includes(o.status) ? [
+    blocked ? <span key="bl" className="o-meta" style={{ padding: 6 }}>الرقم في ليست نوار</span> : <a key="c" href={confirmHref} className="ok">✓ مؤكدة (اختار القطع)</a>,
+    act("noans", "ما جاوبش"), act("postpone", "مؤجلة"), act("dup", "مكررة"), act("cancel", "ملغية", "bad"),
+  ] : o.status === "wait" ? [simple(sendNow, "ابعث ذركا لشركة التوصيل"), simple(cancelWaiting, "ألغيها (القطع يرجعو للستوك)", "bad")]
+    : ["cancelled", "dup"].includes(o.status) ? [act("reopen", "رجعها جديدة")] : [];
+  if (!items.length) return <StatusChip s={o.status} />;
+  return (
+    <details className="thf">
+      <summary><StatusChip s={o.status} /> ▾</summary>
+      <div className="menu">{items}</div>
+    </details>
+  );
+}
+
 type Parcel = { order_id: number; branch_id: string; tracking: string | null; delivery_company: string | null; stub: boolean };
 
 export default async function Orders({ searchParams }: { searchParams: Sp }) {
@@ -42,6 +69,8 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
     sb.from("sheet_sources").select("name").order("id"),
   ]);
   const ids = orders.map((o) => o.id);
+  const editId = Number(sp.edit) || 0;
+  const catalog = editId ? await loadCatalog() : [];
   const [{ data: meta }, { data: parcels }] = ids.length ? await Promise.all([
     sb.from("order_meta").select("order_id, kind, source, sheet_ref, sheet_date, extra").in("order_id", ids),
     sb.from("parcels").select("order_id, branch_id, tracking, delivery_company, stub").in("order_id", ids),
@@ -63,6 +92,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   const today = new Date(), ago = (n: number) => dayDz(new Date(today.getTime() - n * 86400_000));
   const cur = { src: sp.src ?? "", st, q: sp.q ?? "", from: sp.from ?? "", to: sp.to ?? "", prod: sp.prod ?? "", conf: sp.conf ?? "", wilaya: sp.wilaya ?? "" };
   const link = (patch: Record<string, string>) => "?" + new URLSearchParams(Object.entries({ ...cur, ...patch }).filter(([, v]) => v)).toString();
+  const here = "/manager/orders" + link({});
   const confirmers = people.filter((p) => p.role === "confirmer");
   const wilayas = [...new Set([...orders.map((o) => o.wilaya), ...(sp.wilaya ? [sp.wilaya] : [])])].sort();
   const all = (k: string) => [link({ [k]: "" }), "الكل", !cur[k as keyof typeof cur]] as [string, string, boolean];
@@ -181,7 +211,8 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
               const ps = parcelsOf(o.id), m = metaOf.get(o.id), h = hist.get(phoneKey(o.phone));
               const total = o.total_price ?? (o.unit_price != null ? o.unit_price * o.qty + (o.delivery_price ?? 0) - (o.discount ?? 0) : null);
               return (
-                <tr key={o.id} className={m?.kind === "abandoned" ? "row-warn" : undefined}>
+                <Fragment key={o.id}>
+                <tr id={`o${o.id}`} className={m?.kind === "abandoned" ? "row-warn" : undefined}>
                   <td>{m?.source ?? "إدخال يدوي"}{m?.kind === "abandoned" && <div><span className="chip warn">متروكة</span></div>}</td>
                   <td className="num">{m?.sheet_ref ?? `#${o.id}`}</td>
                   <td className="num">{m?.sheet_date ?? when(o.created_at)}</td>
@@ -189,7 +220,8 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                   <td className="num" dir="ltr">{o.phone}
                     {h && h.n > 1 && <div><span className="chip" title="طلبيات بنفس الرقم في الموقع: الكل · في التوصيل · راجعة">{h.n} · {h.sent}✓ · {h.ret}↩</span></div>}
                   </td>
-                  <td><StatusChip s={o.status} />{blocked.has(phoneKey(o.phone)) && <> <span className="chip bad">ليست نوار</span></>}</td>
+                  <td><StatusCell o={o} back={here === "/manager/orders?" ? "/manager/orders" : here} confirmHref={link({ edit: String(o.id) }) + `#o${o.id}`}
+                    blocked={blocked.has(phoneKey(o.phone))} />{blocked.has(phoneKey(o.phone)) && <> <span className="chip bad">ليست نوار</span></>}</td>
                   <td>{o.address ?? "-"}</td>
                   <td>{o.wilaya}</td>
                   <td>{o.commune ?? "-"}</td>
@@ -214,6 +246,18 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                     {o.status === "sent" && <div className="o-meta">أرسلها: {o.sent_by ? pname.get(o.sent_by) ?? "-" : "تلقائي"}</div>}
                   </td>
                 </tr>
+                {editId === o.id && QUEUE_S.includes(o.status) && (
+                  <tr><td colSpan={21} style={{ background: "var(--ok-bg)" }}>
+                    <form action={confirmOrder} style={{ display: "grid", gap: 8, maxWidth: 560 }}>
+                      <input type="hidden" name="back" value={here.replace(/[?&]edit=\d+/, "").replace(/\?$/, "") || "/manager/orders"} /><input type="hidden" name="id" value={o.id} />
+                      <b>تأكيد {o.customer_name}: اختار القطع (المنتج، اللون، المقاس)</b>
+                      {o.details && <div className="o-meta">طلب الزبونة: {o.details}</div>}
+                      <PiecesPicker catalog={catalog} defaultPid={o.product_id} qty={o.qty} mode="confirm" />
+                      <div className="actions"><button className="btn ok" type="submit">تأكيد</button><a className="btn" href={link({ edit: "" })}>رجوع</a></div>
+                    </form>
+                  </td></tr>
+                )}
+                </Fragment>
               );
             }) : <tr><td colSpan={21} className="empty">ما كاين حتى طلبية.</td></tr>}
           </tbody>

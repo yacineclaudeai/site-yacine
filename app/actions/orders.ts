@@ -5,7 +5,11 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { back, dbError, int, str } from "./util";
 
 const BACKS = /^\/(confirm(\/(wait|sent))?|dispatch|manager(\/(orders|confirmers))?)$/;
-const backTo = (f: FormData, fallback: string) => (BACKS.test(str(f, "back")) ? str(f, "back") : fallback);
+// back يقدر يكون فيه الفلتر تاع الجدول (?st=..&prod=..) باش يرجع لنفس البلاصة
+const backTo = (f: FormData, fallback: string) => {
+  const b = str(f, "back"), [p, q] = b.split("?");
+  return BACKS.test(p) && (!q || /^[\w%=&.+-]*$/.test(q)) ? b : fallback;
+};
 
 function lines(f: FormData): { variant_id: string }[] | null {
   try {
@@ -32,7 +36,7 @@ export async function confirmOrder(f: FormData) {
   await call(P, "confirm_order", { p_order: int(f, "id"), p_lines: l }, "تأكدت. تقدر تبدل القطع ولا تلغيها قبل ما تتبعث.");
 }
 
-const MARK_OK: Record<string, string> = { noans: "تسجلت: ما جاوبش.", postpone: "تأجلت.", dup: "تسجلت مكررة.", cancel: "تلغات." };
+const MARK_OK: Record<string, string> = { noans: "تسجلت: ما جاوبش.", postpone: "تأجلت.", dup: "تسجلت مكررة.", cancel: "تلغات.", reopen: "رجعت جديدة." };
 export async function markOrder(f: FormData) {
   await requireRole("confirmer", "manager");
   const P = backTo(f, "/confirm"), a = str(f, "action");
