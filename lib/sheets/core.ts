@@ -147,6 +147,7 @@ export const digits = (s: string) => s.replace(/\D/g, "");
 // الشيت يمحي الـ0 كي يكون الرقم "nombre": 776351302 → 0776351302. و+213 / 00213 → 0
 export function fixPhone(p: string) {
   const d = digits(p).replace(/^00213/, "").replace(/^213(?=[567]\d{8}$)/, "");
+  if (/^0[567]\d{8}$/.test(d)) return d;
   return /^[567]\d{8}$/.test(d) ? "0" + d : p.trim();
 }
 

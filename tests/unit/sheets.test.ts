@@ -23,7 +23,9 @@ describe("sheet url + csv", () => {
     const { fixPhone } = await import("../../lib/sheets/core");
     expect(fixPhone("776351302")).toBe("0776351302");
     expect(fixPhone("+213 661 22 33 44")).toBe("0661223344");
-    expect(fixPhone("0550 11 22 33")).toBe("0550 11 22 33");
+    expect(fixPhone("0550 11 22 33")).toBe("0550112233");
+    expect(fixPhone("+ 0659206622")).toBe("0659206622");
+    expect(fixPhone("021 23 45 67")).toBe("021 23 45 67");
   });
   it("cleans money", () => {
     expect(money("2 900,00 DA")).toBe("2900");

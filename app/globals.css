@@ -134,3 +134,7 @@ a.chip{text-decoration:none;color:inherit}
 .thf .menu button{all:unset;display:block;box-sizing:border-box;width:100%;padding:6px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
 .thf .menu button:hover{background:var(--info-bg)}
 .thf .menu .bad{color:var(--bad)} .thf .menu a.ok{color:var(--ok);font-weight:600}
+.otable-wrap{max-height:78vh;overflow:auto;padding-top:0}
+/* جدول الطلبات ياخذ عرض الشاشة كامل (كيما أوكتوماتيك) */
+@media (min-width:900px){.otable-wrap{width:calc(100vw - 48px);margin-inline:calc(50% - 50vw + 24px)}}
+.otable td.cell-prod{white-space:normal;min-width:160px;max-width:240px}

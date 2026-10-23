@@ -62,11 +62,12 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   const sb = await supabaseServer();
   const st = sp.st ?? "";
   const statuses = STATUS_GROUPS[st]?.statuses ?? (st in STATUS_L ? [st as OrderStatus] : undefined);
-  const [{ list: orders, count }, branches, products, people, { data: bl }, { data: srcs }] = await Promise.all([
+  const [{ list: orders, count }, branches, products, people, { data: bl }, { data: srcs }, { data: pcs }] = await Promise.all([
     loadOrdersFiltered({ statuses, from: sp.from, to: sp.to, q: sp.q, prod: sp.prod, conf: sp.conf, wilaya: sp.wilaya, src: sp.src }),
     loadBranches(), loadProducts(), loadProfiles(),
     sb.from("blacklist").select("phone_key"),
     sb.from("sheet_sources").select("name").order("id"),
+    sb.from("product_confirmers").select("product_id, confirmer_id"),
   ]);
   const ids = orders.map((o) => o.id);
   const editId = Number(sp.edit) || 0;
@@ -93,6 +94,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   const cur = { src: sp.src ?? "", st, q: sp.q ?? "", from: sp.from ?? "", to: sp.to ?? "", prod: sp.prod ?? "", conf: sp.conf ?? "", wilaya: sp.wilaya ?? "" };
   const link = (patch: Record<string, string>) => "?" + new URLSearchParams(Object.entries({ ...cur, ...patch }).filter(([, v]) => v)).toString();
   const here = "/manager/orders" + link({});
+  const assigned = new Map((pcs ?? []).map((r) => [r.product_id as string, r.confirmer_id as string]));
   const confirmers = people.filter((p) => p.role === "confirmer");
   const wilayas = [...new Set([...orders.map((o) => o.wilaya), ...(sp.wilaya ? [sp.wilaya] : [])])].sort();
   const all = (k: string) => [link({ [k]: "" }), "الكل", !cur[k as keyof typeof cur]] as [string, string, boolean];
@@ -177,7 +179,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
         </div>
       </form>
 
-      <div className="panel scroll">
+      <div className="panel scroll otable-wrap">
         <table className="otable">
           <thead><tr>
             <HF label="المصدر" active={sp.src} options={[all("src"), ...sourcesList.map((x) => [link({ src: x }), x, sp.src === x] as [string, string, boolean])]} />
@@ -194,16 +196,14 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
             <HF label="الحالة" active={st ? STATUS_GROUPS[st]?.label.split(" (")[0] ?? STATUS_L[st] : undefined}
               options={[all("st"), ...Object.entries(STATUS_GROUPS).map(([k, g]) => [link({ st: k }), g.label, st === k] as [string, string, boolean]),
                 ...Object.entries(STATUS_L).map(([k, l]) => [link({ st: k }), `· ${l}`, st === k] as [string, string, boolean])]} />
-            <th>العنوان</th>
-            <HF label="الولاية" active={sp.wilaya} options={[all("wilaya"), ...wilayas.map((w) => [link({ wilaya: w }), w, sp.wilaya === w] as [string, string, boolean])]} />
-            <th>البلدية</th><th>نوع التوصيل</th>
+            <HF label="التأكيد بواسطة" active={confirmers.find((p) => p.id === sp.conf)?.name}
+              options={[all("conf"), ...confirmers.map((p) => [link({ conf: p.id }), p.name, sp.conf === p.id] as [string, string, boolean])]} />
             <HF label="المنتج" active={sp.prod === "none" ? "ما تربطش" : products.find((p) => p.id === sp.prod)?.name}
               options={[all("prod"), [link({ prod: "none" }), "منتج ما تربطش", sp.prod === "none"],
                 ...products.map((p) => [link({ prod: p.id }), p.name, sp.prod === p.id] as [string, string, boolean])]} />
-            <th>الكمية</th><th>سعر المنتج</th><th>سعر التوصيل</th>
-            <th>التخفيض</th><th>السعر الكلي</th><th>ملاحظات</th><th>التفاصيل</th><th>أعمدة أخرى</th>
-            <HF label="التأكيد بواسطة" active={confirmers.find((p) => p.id === sp.conf)?.name}
-              options={[all("conf"), ...confirmers.map((p) => [link({ conf: p.id }), p.name, sp.conf === p.id] as [string, string, boolean])]} />
+            <th>المتغيرات (لون، مقاس)</th><th>الكمية</th><th>السعر الكلي</th>
+            <HF label="الولاية" active={sp.wilaya} options={[all("wilaya"), ...wilayas.map((w) => [link({ wilaya: w }), w, sp.wilaya === w] as [string, string, boolean])]} />
+            <th>البلدية</th><th>العنوان</th><th>نوع التوصيل</th><th>سعر المنتج</th><th>سعر التوصيل</th><th>التخفيض</th><th>ملاحظات</th><th>أعمدة أخرى</th>
             <th>الفرع والتتبع</th>
           </tr></thead>
           <tbody>
@@ -222,22 +222,26 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
                   </td>
                   <td><StatusCell o={o} back={here === "/manager/orders?" ? "/manager/orders" : here} confirmHref={link({ edit: String(o.id) }) + `#o${o.id}`}
                     blocked={blocked.has(phoneKey(o.phone))} />{blocked.has(phoneKey(o.phone)) && <> <span className="chip bad">ليست نوار</span></>}</td>
-                  <td>{o.address ?? "-"}</td>
-                  <td>{o.wilaya}</td>
-                  <td>{o.commune ?? "-"}</td>
-                  <td>{o.delivery_type ?? "-"}</td>
-                  <td>{o.order_lines.length ? [...new Set(o.order_lines.map((l) => l.product_name))].join(" + ") : o.product_name}
+                  <td>{o.confirmed_by ? pname.get(o.confirmed_by) ?? "-"
+                    : assigned.get(o.product_id ?? "") ? <span className="o-meta">عند {pname.get(assigned.get(o.product_id!)!)}</span>
+                    : <span className="o-meta">ما عند حتى وحدة</span>}</td>
+                  <td className="cell-prod" title={o.product_name}>{o.order_lines.length ? [...new Set(o.order_lines.map((l) => l.product_name))].join(" + ") : o.product_name}
                     {!o.product_id && !o.order_lines.length && <div><a className="chip warn" href="/manager/settings">منتج ما تربطش</a></div>}
                     {!!o.order_lines.length && <div className="o-meta">{o.order_lines.map((l) => `${l.color} / ${l.size}`).join(" + ")}</div>}</td>
+                  <td className="cell-long" title={o.details ?? ""}><div className="clamp">{o.order_lines.length
+                    ? o.order_lines.map((l) => `${l.color} / ${l.size}`).join(" + ") : o.details ?? "-"}</div>
+                    {!!o.order_lines.length && o.details && <div className="o-meta clamp">طلبت: {o.details}</div>}</td>
                   <td className="num">{o.qty}</td>
+                  <td className="num"><b>{da(total)}</b></td>
+                  <td>{o.wilaya}</td>
+                  <td>{o.commune ?? "-"}</td>
+                  <td>{o.address ?? "-"}</td>
+                  <td>{o.delivery_type ?? "-"}</td>
                   <td className="num">{da(o.unit_price)}</td>
                   <td className="num">{da(o.delivery_price)}</td>
                   <td className="num">{da(o.discount)}</td>
-                  <td className="num"><b>{da(total)}</b></td>
                   <td className="cell-long" title={o.notes ?? ""}><div className="clamp">{o.notes ?? "-"}</div></td>
-                  <td className="cell-long" title={o.details ?? ""}><div className="clamp">{o.details ?? "-"}</div></td>
                   <td className="cell-long o-meta" title={m?.extra ?? ""}><div className="clamp">{m?.extra ?? "-"}</div></td>
-                  <td>{o.confirmed_by ? pname.get(o.confirmed_by) ?? "-" : "-"}</td>
                   <td>{branchIds(o).map((id) => (
                       <div key={id}>{br.get(id)?.name}<div className="o-meta">{br.get(id)?.delivery_company ?? "-"}</div></div>
                     ))}
