@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import WaitList from "@/components/WaitList";
 import { sendAll } from "@/app/actions/orders";
 import { requireRole } from "@/lib/auth";
-import { loadWaiting, sendDue } from "@/lib/orders";
+import { loadRoutes, loadWaiting, sendDue } from "@/lib/orders";
 
 type Sp = Promise<{ ok?: string; err?: string }>;
 
@@ -11,7 +11,7 @@ type Sp = Promise<{ ok?: string; err?: string }>;
 export default async function Dispatch({ searchParams }: { searchParams: Sp }) {
   const me = await requireRole("dispatch");
   await sendDue();
-  const w = await loadWaiting();
+  const [w, routes] = await Promise.all([loadWaiting(), loadRoutes()]);
   return (
     <>
       <Header me={me} />
@@ -24,7 +24,7 @@ export default async function Dispatch({ searchParams }: { searchParams: Sp }) {
           <form action={sendAll} className="actions"><input type="hidden" name="back" value="/dispatch" />
             <button className="btn pri" type="submit" disabled={!w.length}>ابعث الكل الآن</button></form>
         </div>
-        <section className="panel"><WaitList orders={w} catalog={[]} back="/dispatch" canEdit={false} canSend /></section>
+        <section className="panel"><WaitList orders={w} catalog={[]} back="/dispatch" canEdit={false} canSend routes={routes} /></section>
       </main>
     </>
   );

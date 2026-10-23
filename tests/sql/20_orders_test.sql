@@ -92,6 +92,7 @@ select tests.eq(tests.stock('بيجامة قطيفة|أحمر|M'), 12, 'confirm 
 select tests.ok(tests.st('زبون تجريبي 1') = 'wait', 'order is waiting');
 select tests.ok((select send_at = confirmed_at + interval '10 minutes' from orders where id = tests.oid('زبون تجريبي 1')), 'send_at = confirm + 10 min');
 select tests.throws($$select send_now(tests.oid('زبون تجريبي 1'))$$, 'confirmer cannot send early');
+select tests.throws($$select * from send_preview()$$, 'confirmer cannot see branches/delivery companies');
 
 -- تبدل القطع: الوقت ما يتعاودش
 select update_waiting_lines(tests.oid('زبون تجريبي 1'), tests.pieces('بيجامة قطيفة|رمادي|L'));
@@ -126,6 +127,8 @@ reset role;
 set local role authenticated;
 select tests.login('dispatch@test');
 select tests.eq((select count(*) from orders), 2, 'dispatch sees only waiting/sent orders');
+select tests.eq((select count(*) from send_preview()), 3, 'dispatch sees branch + delivery company per parcel before sending (1 + 2)');
+select tests.eq((select count(*) from send_preview() where order_id = tests.oid('زبون تجريبي 4')), 2, 'two-branch order shows two parcels');
 select tests.throws($$select confirm_order(tests.oid('زبون تجريبي 3'), tests.pieces('طقم أطفال|أحمر|4 سنوات'))$$, 'dispatch cannot confirm');
 select send_now(tests.oid('زبون تجريبي 1'));
 select tests.ok(tests.st('زبون تجريبي 1') = 'sent', 'dispatch sends early');

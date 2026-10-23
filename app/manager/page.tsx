@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import WaitList from "@/components/WaitList";
 import { sendAll } from "@/app/actions/orders";
 import { loadBranches, loadProducts, loadProfiles } from "@/lib/data";
-import { confirmedCounts, loadCatalog, loadWaiting, PAY_PER_CONFIRM, sendDue } from "@/lib/orders";
+import { confirmedCounts, loadCatalog, loadRoutes, loadWaiting, PAY_PER_CONFIRM, sendDue } from "@/lib/orders";
 import { fmt, variantLabel } from "@/lib/format";
 
 type Sp = Promise<{ ok?: string; err?: string }>;
@@ -12,7 +12,7 @@ type Sp = Promise<{ ok?: string; err?: string }>;
 export default async function Overview({ searchParams }: { searchParams: Sp }) {
   const sb = await supabaseServer();
   await sendDue();
-  const [branches, confirmers, waiting, catalog, products, { data: alerts }, { data: pending }] = await Promise.all([
+  const [branches, confirmers, waiting, catalog, products, { data: alerts }, { data: pending }, routes] = await Promise.all([
     loadBranches(),
     loadProfiles("confirmer"),
     loadWaiting(),
@@ -20,10 +20,10 @@ export default async function Overview({ searchParams }: { searchParams: Sp }) {
     loadProducts(),
     sb.from("stock_alerts").select("*").order("stock"),
     sb.from("products").select("name, branch_id").eq("pending", true),
+    loadRoutes(),
   ]);
   const bname = new Map(branches.map((b) => [b.id, b.name]));
   const cname = new Map(confirmers.map((c) => [c.id, c.name]));
-  const vbranch = new Map(products.flatMap((p) => p.variants.map((v) => [v.id, p.branch_id] as const)));
   const counts = await confirmedCounts(confirmers);
 
   return (
@@ -42,8 +42,8 @@ export default async function Overview({ searchParams }: { searchParams: Sp }) {
       <div className="grid g2">
         <section className="panel">
           <h3>الطلبيات في الانتظار</h3>
-          <WaitList orders={waiting} catalog={catalog} back="/manager" canEdit canSend
-            meta={(o) => `أكدتها ${cname.get(o.confirmed_by ?? "") ?? "المدير"} · ${[...new Set(o.order_lines.map((l) => bname.get(vbranch.get(l.variant_id) ?? "")))].join(" + ")}`} />
+          <WaitList orders={waiting} catalog={catalog} back="/manager" canEdit canSend routes={routes}
+            meta={(o) => `أكدتها ${cname.get(o.confirmed_by ?? "") ?? "المدير"}`} />
         </section>
         <section className="panel">
           <h3>ألوان خلصت ولا قربت تخلص</h3>

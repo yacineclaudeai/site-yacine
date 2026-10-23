@@ -2,14 +2,15 @@ import Flash from "@/components/Flash";
 import { StatusChip } from "@/components/OrderBits";
 import { createOrder } from "@/app/actions/orders";
 import { loadBranches, loadProducts, loadProfiles } from "@/lib/data";
-import { loadOrders, phoneKey, sendDue, type Order } from "@/lib/orders";
+import { loadOrdersFiltered, ORDERS_LIMIT, phoneKey, sendDue, STATUS_GROUPS, type Order, type OrderStatus } from "@/lib/orders";
 import { supabaseServer } from "@/lib/supabase/server";
 
-type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string }>;
+type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string; from?: string; to?: string }>;
 type Meta = { order_id: number; kind: string; source: string | null; sheet_ref: string | null; sheet_date: string | null; extra: string | null };
 const STATUS_L: Record<string, string> = { new: "جديدة", failed1: "فاشلة 1", failed2: "فاشلة 2", failed3: "فاشلة 3", postponed: "مؤجلة",
   dup: "مكررة", cancelled: "ملغية", wait: "في الانتظار", sent: "في التوصيل", returned: "راجعة" };
 const da = (n: number | null) => (n == null ? "-" : Number(n).toLocaleString("fr-DZ"));
+const dayDz = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Algiers" });
 const when = (iso: string) => new Date(iso).toLocaleString("fr-DZ", { timeZone: "Africa/Algiers", dateStyle: "short", timeStyle: "short" });
 type Parcel = { order_id: number; branch_id: string; tracking: string | null; delivery_company: string | null; stub: boolean };
 
@@ -17,12 +18,17 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   const sp = await searchParams;
   await sendDue();
   const sb = await supabaseServer();
-  const [orders, branches, products, people, { data: meta }, { data: parcels }, { data: bl }] = await Promise.all([
-    loadOrders(), loadBranches(), loadProducts(), loadProfiles(),
-    sb.from("order_meta").select("order_id, kind, source, sheet_ref, sheet_date, extra"),
-    sb.from("parcels").select("order_id, branch_id, tracking, delivery_company, stub"),
+  const st = sp.st ?? "";
+  const statuses = STATUS_GROUPS[st]?.statuses ?? (st in STATUS_L ? [st as OrderStatus] : undefined);
+  const [{ list: orders, count }, branches, products, people, { data: bl }] = await Promise.all([
+    loadOrdersFiltered({ statuses, from: sp.from, to: sp.to, q: sp.q }), loadBranches(), loadProducts(), loadProfiles(),
     sb.from("blacklist").select("phone_key"),
   ]);
+  const ids = orders.map((o) => o.id);
+  const [{ data: meta }, { data: parcels }] = ids.length ? await Promise.all([
+    sb.from("order_meta").select("order_id, kind, source, sheet_ref, sheet_date, extra").in("order_id", ids),
+    sb.from("parcels").select("order_id, branch_id, tracking, delivery_company, stub").in("order_id", ids),
+  ]) : [{ data: [] }, { data: [] }];
   const blocked = new Set((bl ?? []).map((b) => b.phone_key as string));
   const metaOf = new Map(((meta ?? []) as Meta[]).map((m) => [m.order_id, m]));
   const kind = new Map([...metaOf.values()].map((m) => [m.order_id, m.kind]));
@@ -35,10 +41,13 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   }
   const srcName = (id: number) => metaOf.get(id)?.source ?? "إدخال يدوي";
   const sourcesList = [...new Set(orders.map((o) => srcName(o.id)))];
-  const q = (sp.q ?? "").trim().toLowerCase();
-  const shown = orders.filter((o) => (!sp.src || srcName(o.id) === sp.src) && (!sp.st || o.status === sp.st)
-    && (!q || [o.customer_name, o.phone, o.wilaya, o.commune, o.product_name, metaOf.get(o.id)?.sheet_ref].some((x) => x?.toLowerCase().includes(q))
-      || (q.replace(/\D/g, "").length >= 4 && phoneKey(o.phone).includes(phoneKey(q)))));
+  const shown = orders.filter((o) => !sp.src || srcName(o.id) === sp.src);
+  // روابط سريعة للمدة: تحافظ على باقي الفلتر
+  const today = new Date(), ago = (n: number) => dayDz(new Date(today.getTime() - n * 86400_000));
+  const link = (patch: Record<string, string>) => "?" + new URLSearchParams(Object.entries({ src: sp.src ?? "", st, q: sp.q ?? "",
+    from: sp.from ?? "", to: sp.to ?? "", ...patch }).filter(([, v]) => v)).toString();
+  const periods: [string, string, string][] = [["اليوم", ago(0), ago(0)], ["البارح", ago(1), ago(1)], ["7 أيام", ago(6), ago(0)],
+    ["30 يوم", ago(29), ago(0)], ["هذا الشهر", ago(0).slice(0, 8) + "01", ago(0)], ["كل الوقت", "", ""]];
   const br = new Map(branches.map((b) => [b.id, b]));
   const pname = new Map(people.map((p) => [p.id, p.name]));
   const pbranch = new Map(products.map((p) => [p.id, p.branch_id]));
@@ -60,7 +69,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
     <>
       <Flash searchParams={searchParams} />
       <section className="panel" style={{ marginBottom: 14 }}>
-        <h3>عادية ومتروكة</h3>
+        <h3>عادية ومتروكة <span className="o-meta">(حسب الفلتر)</span></h3>
         <div className="scroll"><table>
           <thead><tr><th>النوع</th><th>الطلبات</th><th>المؤكدة</th><th>نسبة التأكيد</th><th>في التوصيل</th><th>الراجعة</th></tr></thead>
           <tbody>{stats.map((s) => (
@@ -70,8 +79,8 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
         <p className="sub" style={{ margin: "8px 0 0" }}>التسليم النهائي يجي من شركة التوصيل أوتوماتيك. المؤكدات ما يشوفوش هذا الفرق.</p>
       </section>
 
-      <section className="panel" style={{ marginBottom: 14 }}>
-        <h3>زيد طلبية بيدك</h3>
+      <details className="panel" style={{ marginBottom: 14 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 600 }}>+ زيد طلبية بيدك</summary>
         <form action={createOrder} className="o-row">
           <label className="f">اسم الزبون<input type="text" name="name" required /></label>
           <label className="f">الهاتف<input type="tel" name="phone" required dir="ltr" /></label>
@@ -88,16 +97,33 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
           <button className="btn pri" type="submit">زيد</button>
         </form>
         <p className="sub" style={{ margin: "8px 0 0" }}>الطلبيات تجي من الشيتات وحدها (الإعدادات ← مصدر الطلبات). هنا تزيد وحدة بيدك.</p>
-      </section>
+      </details>
 
-      <form className="panel o-row" style={{ marginBottom: 10 }}>
-        <label className="f">المصدر<select name="src" defaultValue={sp.src ?? ""}><option value="">الكل</option>
-          {sourcesList.map((x) => <option key={x}>{x}</option>)}</select></label>
-        <label className="f">الحالة<select name="st" defaultValue={sp.st ?? ""}><option value="">الكل</option>
-          {Object.entries(STATUS_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-        <label className="f" style={{ flex: 1, minWidth: 180 }}>بحث<input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="اسم، هاتف، ولاية، رقم الطلبية..." /></label>
-        <button className="btn sm" type="submit">صفي</button>
-        <span className="o-meta"><b className="num">{shown.length}</b> طلبية</span>
+      <form className="panel" style={{ marginBottom: 10, display: "grid", gap: 10 }}>
+        <div className="o-row">
+          <label className="f">الحالة<select name="st" defaultValue={st}>
+            <option value="">الكل</option>
+            <optgroup label="مجموعات">{Object.entries(STATUS_GROUPS).map(([k, g]) => <option key={k} value={k}>{g.label}</option>)}</optgroup>
+            <optgroup label="حالة وحدة">{Object.entries(STATUS_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
+          </select></label>
+          <label className="f">من<input type="date" name="from" defaultValue={sp.from ?? ""} /></label>
+          <label className="f">إلى<input type="date" name="to" defaultValue={sp.to ?? ""} /></label>
+          <label className="f">المصدر<select name="src" defaultValue={sp.src ?? ""}><option value="">الكل</option>
+            {sourcesList.map((x) => <option key={x}>{x}</option>)}</select></label>
+          <label className="f" style={{ flex: 1, minWidth: 180 }}>بحث<input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="اسم، هاتف، ولاية، منتج..." /></label>
+          <button className="btn pri" type="submit">صفي</button>
+          <a className="btn" href="?">مسح الفلتر</a>
+        </div>
+        <div className="actions">
+          {Object.entries({ "": "الكل", ...Object.fromEntries(Object.entries(STATUS_GROUPS).map(([k, g]) => [k, g.label.split(" (")[0]])) }).map(([k, l]) => (
+            <a key={k || "all"} href={link({ st: k })} className={`chip ${st === k ? "ok" : ""}`}>{l}</a>
+          ))}
+          <span className="o-meta">·</span>
+          {periods.map(([l, f, t]) => (
+            <a key={l} href={link({ from: f, to: t })} className={`chip ${(sp.from ?? "") === f && (sp.to ?? "") === t ? "ok" : ""}`}>{l}</a>
+          ))}
+          <span className="o-meta"><b className="num">{shown.length}</b> طلبية{count > ORDERS_LIMIT ? ` (من ${count}، نوريو آخر ${ORDERS_LIMIT}: ضيق الفلتر)` : ""}</span>
+        </div>
       </form>
 
       <div className="panel scroll">

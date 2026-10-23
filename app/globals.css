@@ -118,3 +118,4 @@ form.inline{display:inline}
 .otable td.cell-long{white-space:normal;min-width:180px;max-width:280px}
 .otable tr.row-warn td{background:var(--warn-bg)}
 .note.bad{background:var(--bad-bg);color:var(--bad)}
+a.chip{text-decoration:none;color:inherit}
