@@ -10,7 +10,7 @@ export type Mapping = Partial<Record<Field, string>>; // اسم العمود ك�
 
 export type Source = {
   id: number; name: string; url: string | null; columns: Mapping; sync_minutes: number; active: boolean;
-  start_row: number; last_sync_at: string | null; headers: string[]; product_map?: Record<string, string>;
+  start_row: number; last_sync_at: string | null; headers: string[]; product_map?: Record<string, string>; imported_total?: number;
 };
 
 // ---------- الرابط ----------
@@ -169,12 +169,13 @@ export function money(s: string) {
 export const prodKey = (s: string) => norm(s).slice(0, 200);
 
 // المنتجات المختلفة اللي في عمود المنتج (للربط مع منتجات الموقع)
-export function sheetProducts(rows: string[][], mapping: Mapping, startRow: number) {
+// كل السطور (حتى القدام): باش المدير يربط المنتجات قبل ما تجي الطلبات الجديدة
+export function sheetProducts(rows: string[][], mapping: Mapping) {
   const { headerRow, headers } = table(rows);
   const c = mapping.product ? headers.indexOf(mapping.product) : -1;
   if (c < 0) return [];
   const count = new Map<string, { text: string; n: number }>();
-  for (let i = Math.max(headerRow, startRow - 1); i < rows.length; i++) {
+  for (let i = headerRow; i < rows.length; i++) {
     const t = String(rows[i][c] ?? "").trim();
     if (!t) continue;
     const k = prodKey(t), e = count.get(k) ?? { text: t, n: 0 };
@@ -223,6 +224,19 @@ export function mapRows(sourceId: number, rows: string[][], mapping: Mapping, st
 const reason = (e: unknown) =>
   e instanceof SheetError ? e.message : `صرا مشكل ما كانش متوقع: ${e instanceof Error ? e.message : String(e)}`.slice(0, 400);
 
+// حماية: بزاف طلبيات مرة وحدة = غالبا طلبات قدام. ما ندخلوهمش للمؤكدات بلا ما يقرر المدير.
+export const MAX_BATCH = 300;
+
+// تجميع الأسباب: "المنتج ... ما تربطش" × 25000
+export function summarize(errors: { reason: string }[]) {
+  const m = new Map<string, number>();
+  for (const e of errors) {
+    const k = e.reason.includes("ربط المنتجات") ? "المنتج ما تربطش بمنتج في الموقع" : e.reason.split(":")[0].split("\"")[0].trim();
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
 async function prepare(admin: SupabaseClient, s: Source) {
   if (!s.url) throw new SheetError("ما كاينش رابط. حط رابط الشيت واحفظ.");
   const [rows, { data: products, error }] = await Promise.all([
@@ -231,8 +245,20 @@ async function prepare(admin: SupabaseClient, s: Source) {
   ]);
   if (error) throw new SheetError("ما قدرتش نقرا المنتجات من قاعدة البيانات: " + error.message);
   if (!products?.length) throw new SheetError("ما كاين حتى منتج مفعل في الموقع. زيد المنتجات قبل (تبويب المنتجات والستوك).");
-  return { rows, products, ...mapRows(s.id, rows, s.columns ?? {}, s.start_row, products, s.product_map ?? {}) };
+  // أسماء المنتجات اللي في الشيت تتجدد كل مرة (منتج جديد في الحملة يبان وحدو في "ربط المنتجات")
+  const texts = sheetProducts(rows, s.columns ?? {});
+  const product_map = { ...(s.product_map ?? {}) };
+  for (const t of texts) {
+    const k = prodKey(t.text), m = matchProduct(t.text, products);
+    if (!product_map[k] && m) product_map[k] = m.id;
+  }
+  await admin.from("sheet_sources").update({ product_texts: texts, product_map }).eq("id", s.id);
+  return { rows, products, ...mapRows(s.id, rows, s.columns ?? {}, s.start_row, products, product_map) };
 }
+
+const tooMany = (n: number) =>
+  `كاين ${n} طلبية ما دخلتش من قبل، هذا بزاف مرة وحدة (غالبا طلبات قدام). ما دخلت والو باش ما نعمروش المؤكدات. ` +
+  `إذا هوما قدام: علّم "ما تدخلش الطلبات القدام" واضغط "اقرا الشيت". إذا تحب تدخلهم، بدل "نبداو من السطر" للسطر اللي تحب تبدا منو.`;
 
 // admin = client بالـservice role (السيرفر برك)
 export async function syncSource(admin: SupabaseClient, s: Source) {
@@ -240,6 +266,7 @@ export async function syncSource(admin: SupabaseClient, s: Source) {
     admin.from("sheet_sources").update({ last_sync_at: new Date().toISOString(), ...patch }).eq("id", s.id);
   try {
     const { ok, errors } = await prepare(admin, s);
+    if (ok.length - (s.imported_total ?? 0) > MAX_BATCH) throw new SheetError(tooMany(ok.length - (s.imported_total ?? 0)));
     let n = 0;
     for (let i = 0; i < ok.length; i += 200) { // دفعات باش ما يطولش
       const { data, error } = await admin.rpc("import_sheet_orders", { p_source: s.id, p_rows: ok.slice(i, i + 200) });
@@ -263,14 +290,15 @@ export async function syncSource(admin: SupabaseClient, s: Source) {
 export async function testSource(admin: SupabaseClient, s: Source) {
   try {
     const { rows, ok, errors, headers } = await prepare(admin, s);
-    const { data: seen } = await admin.from("sheet_imports").select("row_key").eq("source_id", s.id);
-    const old = new Set((seen ?? []).map((r) => r.row_key as string));
-    const fresh = ok.filter((r) => !old.has(r.key)).length;
-    return { ok: true as const, lines: [
+    const fresh = Math.max(0, ok.length - (s.imported_total ?? 0));
+    const lines = [
       `✓ الموقع دخل للشيت وقرا ${rows.length} سطر و${headers.length} عمود.`,
-      `✓ ${ok.length} سطر صحيح: ${fresh} جديد يدخل في التزامن الجاي، و${ok.length - fresh} دخل من قبل.`,
-      errors.length ? `✗ ${errors.length} سطر ما يدخلش (السبب تحت).` : "✓ حتى سطر ما فيه مشكل.",
-    ], errors };
+      s.start_row > 2 ? `• يبدا من السطر ${s.start_row} (اللي قبلو ما يدخلوش).` : `• يبدا من أول سطر: حتى الطلبات القدام يدخلو.`,
+      `${ok.length ? "✓" : "✗"} ${ok.length} طلبية صحيحة، منهم ${fresh} ما دخلوش بعد.`,
+      ...summarize(errors).slice(0, 5).map(([k, n]) => `✗ ${n} سطر: ${k}`),
+    ];
+    if (fresh > MAX_BATCH) lines.push(`⚠ ${tooMany(fresh)}`);
+    return { ok: true as const, lines, errors };
   } catch (e) {
     return { ok: false as const, lines: [`✗ ${reason(e)}`], errors: [] };
   }

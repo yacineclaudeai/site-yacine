@@ -115,7 +115,7 @@ export async function readColumns(f: FormData) {
   if (!rows.length || rows[headerRow - 1].every((c) => !String(c ?? "").trim())) back(P, "err", "الشيت فارغ، ولا الورقة اللي في الرابط ماشي ورقة الطلبات.");
   const columns = guessMapping(headers, s.columns ?? {});
   const start = f.get("skip_old") === "on" ? rows.length + 1 : Math.max(s.start_row, headerRow + 1);
-  const texts = sheetProducts(rows, columns, start);
+  const texts = sheetProducts(rows, columns);
   const { data: products } = await admin.from("products").select("id, name").eq("active", true).eq("pending", false);
   const product_map = { ...(s.product_map ?? {}) };
   for (const t of texts) { // تخمين أولي، المدير يصحح

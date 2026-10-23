@@ -82,10 +82,21 @@ describe("real-life sheets", () => {
   it("uses the manager's product links", () => {
     const rows = [["Nom", "Tel", "Produit"], ["سارة", "0550123456", "Pyjama motif coeur"], ["علي", "0550123457", "Pyjama motif coeur"], ["منى", "0550123458", "شي حاجة"]];
     const map = { name: "Nom", phone: "Tel", product: "Produit" };
-    expect(sheetProducts(rows, map, 2)).toEqual([{ text: "Pyjama motif coeur", n: 2 }, { text: "شي حاجة", n: 1 }]);
+    expect(sheetProducts(rows, map)).toEqual([{ text: "Pyjama motif coeur", n: 2 }, { text: "شي حاجة", n: 1 }]);
     const r = mapRows(1, rows, map, 2, products, { "pyjama motif coeur": "a2" });
     expect(r.ok.map((o) => o.product_id)).toEqual(["a2", "a2"]);
     expect(r.ok[0].details).toBe("Pyjama motif coeur");
     expect(r.errors[0].reason).toContain("ربط المنتجات");
+  });
+});
+
+describe("summary", () => {
+  it("groups row errors by cause", async () => {
+    const { summarize } = await import("../../lib/sheets/core");
+    expect(summarize([
+      { reason: 'المنتج "A" ما تربطش بمنتج في الموقع (شوف "ربط المنتجات")' },
+      { reason: 'المنتج "B" ما تربطش بمنتج في الموقع (شوف "ربط المنتجات")' },
+      { reason: 'الهاتف ماشي صحيح: "12"' },
+    ])).toEqual([["المنتج ما تربطش بمنتج في الموقع", 2], ["الهاتف ماشي صحيح", 1]]);
   });
 });
