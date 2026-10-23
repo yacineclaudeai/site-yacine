@@ -120,3 +120,13 @@ form.inline{display:inline}
 .otable tr.row-warn td{background:var(--warn-bg)}
 .note.bad{background:var(--bad-bg);color:var(--bad)}
 a.chip{text-decoration:none;color:inherit}
+.thf{position:relative;display:inline-block}
+.thf summary{cursor:pointer;list-style:none;white-space:nowrap;padding:2px 6px;border-radius:6px}
+.thf summary::-webkit-details-marker{display:none}
+.thf summary:hover,.thf summary.on{background:var(--info-bg);color:var(--text)}
+.thf .menu{position:absolute;z-index:20;top:100%;inset-inline-start:0;min-width:200px;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;display:grid}
+.thf .menu a{padding:6px 10px;border-radius:6px;text-decoration:none;color:inherit;font-weight:400;white-space:nowrap}
+.thf .menu a:hover{background:var(--info-bg)}
+.thf .menu a.on{background:var(--ok-bg);color:var(--ok);font-weight:600}
+.otable thead{position:sticky;top:0;z-index:5;background:var(--surface)}
+.scroll:has(.thf[open]){padding-bottom:330px}

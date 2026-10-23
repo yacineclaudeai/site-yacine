@@ -44,10 +44,25 @@ export const STATUS_GROUPS: Record<string, { label: string; statuses: OrderStatu
   cancelled: { label: "ملغية ومكررة", statuses: ["cancelled", "dup"] },
 };
 export const ORDERS_LIMIT = 500;
-export async function loadOrdersFiltered(f: { statuses?: OrderStatus[]; from?: string; to?: string; q?: string }) {
+export async function loadOrdersFiltered(f: { statuses?: OrderStatus[]; from?: string; to?: string; q?: string;
+  prod?: string; conf?: string; wilaya?: string; src?: string }) {
   const sb = await supabaseServer();
-  let q = sb.from("orders").select(SELECT, { count: "exact" }).order("id", { ascending: false }).limit(ORDERS_LIMIT);
+  const uuid = /^[0-9a-f-]{36}$/i;
+  // المصدر في order_meta (المدير برك): inner join باش الفلتر يتدار في القاعدة
+  let q = sb.from("orders").select(SELECT + (f.src ? ", order_meta!inner(source)" : ""), { count: "exact" })
+    .order("id", { ascending: false }).limit(ORDERS_LIMIT);
+  if (f.src) q = q.eq("order_meta.source", f.src);
   if (f.statuses?.length) q = q.in("status", f.statuses);
+  if (f.prod === "none") q = q.is("product_id", null);
+  else if (f.prod && uuid.test(f.prod)) q = q.eq("product_id", f.prod);
+  if (f.wilaya) q = q.eq("wilaya", f.wilaya);
+  // المؤكدة: اللي أكدتهم هي + اللي في القائمة تاعها (منتجات عطاهالها المدير) ومازال ما تأكدوش
+  const ors: string[] = []; // زوج "أو" يتجمعو بـ"و"
+  if (f.conf && uuid.test(f.conf)) {
+    const { data: pc } = await sb.from("product_confirmers").select("product_id").eq("confirmer_id", f.conf);
+    const ids = (pc ?? []).map((r) => r.product_id as string);
+    ors.push([`confirmed_by.eq.${f.conf}`, ...(ids.length ? [`and(product_id.in.(${ids.join(",")}),status.in.(${QUEUE.join(",")}))`] : [])].join(","));
+  }
   const day = /^\d{4}-\d{2}-\d{2}$/;
   if (f.from && day.test(f.from)) q = q.gte("created_at", `${f.from}T00:00:00+01:00`);
   if (f.to && day.test(f.to)) {
@@ -57,11 +72,13 @@ export async function loadOrdersFiltered(f: { statuses?: OrderStatus[]; from?: s
   const t = (f.q ?? "").trim().replace(/[,()*%\\]/g, " ").trim();
   if (t) {
     const d = t.replace(/\D/g, "");
-    q = q.or([`customer_name.ilike.*${t}*`, `wilaya.ilike.*${t}*`, `commune.ilike.*${t}*`, `product_name.ilike.*${t}*`,
+    ors.push([`customer_name.ilike.*${t}*`, `wilaya.ilike.*${t}*`, `commune.ilike.*${t}*`, `product_name.ilike.*${t}*`,
       ...(d.length >= 4 ? [`phone.ilike.*${d.slice(-8)}*`] : [])].join(","));
   }
+  if (ors.length === 1) q = q.or(ors[0]);
+  else if (ors.length > 1) q = q.or(`and(${ors.map((o) => `or(${o})`).join(",")})`);
   const { data, count } = await q;
-  const list = (data ?? []) as Order[];
+  const list = (data ?? []) as unknown as Order[];
   list.forEach((o) => o.order_lines.sort((a, b) => a.id - b.id));
   return { list, count: count ?? list.length };
 }

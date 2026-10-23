@@ -5,13 +5,28 @@ import { loadBranches, loadProducts, loadProfiles } from "@/lib/data";
 import { loadOrdersFiltered, ORDERS_LIMIT, phoneKey, sendDue, STATUS_GROUPS, type Order, type OrderStatus } from "@/lib/orders";
 import { supabaseServer } from "@/lib/supabase/server";
 
-type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string; from?: string; to?: string }>;
+type Sp = Promise<{ ok?: string; err?: string; src?: string; st?: string; q?: string; from?: string; to?: string; prod?: string; conf?: string; wilaya?: string }>;
 type Meta = { order_id: number; kind: string; source: string | null; sheet_ref: string | null; sheet_date: string | null; extra: string | null };
 const STATUS_L: Record<string, string> = { new: "جديدة", failed1: "فاشلة 1", failed2: "فاشلة 2", failed3: "فاشلة 3", postponed: "مؤجلة",
   dup: "مكررة", cancelled: "ملغية", wait: "في الانتظار", sent: "في التوصيل", returned: "راجعة" };
 const da = (n: number | null) => (n == null ? "-" : Number(n).toLocaleString("fr-DZ"));
 const dayDz = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Algiers" });
 const when = (iso: string) => new Date(iso).toLocaleString("fr-DZ", { timeZone: "Africa/Algiers", dateStyle: "short", timeStyle: "short" });
+// زر ▾ فوق العمود: يفتح قائمة، كل اختيار رابط يفلتري (كيما أوكتوماتيك)
+function HF({ label, active, options, children }: { label: string; active?: string; options: [string, string, boolean][]; children?: React.ReactNode }) {
+  return (
+    <th>
+      <details className="thf">
+        <summary className={active ? "on" : undefined}>{label} ▾{active ? <div className="chip ok">{active}</div> : null}</summary>
+        <div className="menu">
+          {options.map(([href, l, on]) => <a key={href + l} href={href} className={on ? "on" : undefined}>{l}</a>)}
+          {children}
+        </div>
+      </details>
+    </th>
+  );
+}
+
 type Parcel = { order_id: number; branch_id: string; tracking: string | null; delivery_company: string | null; stub: boolean };
 
 export default async function Orders({ searchParams }: { searchParams: Sp }) {
@@ -20,9 +35,11 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
   const sb = await supabaseServer();
   const st = sp.st ?? "";
   const statuses = STATUS_GROUPS[st]?.statuses ?? (st in STATUS_L ? [st as OrderStatus] : undefined);
-  const [{ list: orders, count }, branches, products, people, { data: bl }] = await Promise.all([
-    loadOrdersFiltered({ statuses, from: sp.from, to: sp.to, q: sp.q }), loadBranches(), loadProducts(), loadProfiles(),
+  const [{ list: orders, count }, branches, products, people, { data: bl }, { data: srcs }] = await Promise.all([
+    loadOrdersFiltered({ statuses, from: sp.from, to: sp.to, q: sp.q, prod: sp.prod, conf: sp.conf, wilaya: sp.wilaya, src: sp.src }),
+    loadBranches(), loadProducts(), loadProfiles(),
     sb.from("blacklist").select("phone_key"),
+    sb.from("sheet_sources").select("name").order("id"),
   ]);
   const ids = orders.map((o) => o.id);
   const [{ data: meta }, { data: parcels }] = ids.length ? await Promise.all([
@@ -40,12 +57,15 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
     hist.set(phoneKey(o.phone), h);
   }
   const srcName = (id: number) => metaOf.get(id)?.source ?? "إدخال يدوي";
-  const sourcesList = [...new Set(orders.map((o) => srcName(o.id)))];
-  const shown = orders.filter((o) => !sp.src || srcName(o.id) === sp.src);
+  const sourcesList = [...new Set([...(srcs ?? []).map((x) => x.name as string), "إدخال يدوي"])];
+  const shown = orders;
   // روابط سريعة للمدة: تحافظ على باقي الفلتر
   const today = new Date(), ago = (n: number) => dayDz(new Date(today.getTime() - n * 86400_000));
-  const link = (patch: Record<string, string>) => "?" + new URLSearchParams(Object.entries({ src: sp.src ?? "", st, q: sp.q ?? "",
-    from: sp.from ?? "", to: sp.to ?? "", ...patch }).filter(([, v]) => v)).toString();
+  const cur = { src: sp.src ?? "", st, q: sp.q ?? "", from: sp.from ?? "", to: sp.to ?? "", prod: sp.prod ?? "", conf: sp.conf ?? "", wilaya: sp.wilaya ?? "" };
+  const link = (patch: Record<string, string>) => "?" + new URLSearchParams(Object.entries({ ...cur, ...patch }).filter(([, v]) => v)).toString();
+  const confirmers = people.filter((p) => p.role === "confirmer");
+  const wilayas = [...new Set([...orders.map((o) => o.wilaya), ...(sp.wilaya ? [sp.wilaya] : [])])].sort();
+  const all = (k: string) => [link({ [k]: "" }), "الكل", !cur[k as keyof typeof cur]] as [string, string, boolean];
   const periods: [string, string, string][] = [["اليوم", ago(0), ago(0)], ["البارح", ago(1), ago(1)], ["7 أيام", ago(6), ago(0)],
     ["30 يوم", ago(29), ago(0)], ["هذا الشهر", ago(0).slice(0, 8) + "01", ago(0)], ["كل الوقت", "", ""]];
   const br = new Map(branches.map((b) => [b.id, b]));
@@ -111,6 +131,7 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
           <label className="f">المصدر<select name="src" defaultValue={sp.src ?? ""}><option value="">الكل</option>
             {sourcesList.map((x) => <option key={x}>{x}</option>)}</select></label>
           <label className="f" style={{ flex: 1, minWidth: 180 }}>بحث<input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="اسم، هاتف، ولاية، منتج..." /></label>
+          {(["prod", "conf", "wilaya"] as const).filter((k) => cur[k]).map((k) => <input key={k} type="hidden" name={k} value={cur[k]} />)}
           <button className="btn pri" type="submit">صفي</button>
           <a className="btn" href="?">مسح الفلتر</a>
         </div>
@@ -129,9 +150,31 @@ export default async function Orders({ searchParams }: { searchParams: Sp }) {
       <div className="panel scroll">
         <table className="otable">
           <thead><tr>
-            <th>المصدر</th><th>رقم الطلبية</th><th>التاريخ</th><th>الاسم الكامل</th><th>الهاتف</th><th>الحالة</th><th>العنوان</th>
-            <th>الولاية</th><th>البلدية</th><th>نوع التوصيل</th><th>المنتج</th><th>الكمية</th><th>سعر المنتج</th><th>سعر التوصيل</th>
-            <th>التخفيض</th><th>السعر الكلي</th><th>ملاحظات</th><th>التفاصيل</th><th>أعمدة أخرى</th><th>أكدتها</th><th>الفرع والتتبع</th>
+            <HF label="المصدر" active={sp.src} options={[all("src"), ...sourcesList.map((x) => [link({ src: x }), x, sp.src === x] as [string, string, boolean])]} />
+            <th>رقم الطلبية</th>
+            <HF label="التاريخ" active={sp.from || sp.to ? `${sp.from ?? "…"} ← ${sp.to ?? "…"}` : undefined}
+              options={periods.map(([l, f, t]) => [link({ from: f, to: t }), l, (sp.from ?? "") === f && (sp.to ?? "") === t] as [string, string, boolean])}>
+              <form className="o-row" style={{ padding: 6 }}>
+                {Object.entries(cur).filter(([k, v]) => v && k !== "from" && k !== "to").map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+                <input type="date" name="from" defaultValue={sp.from ?? ""} /><input type="date" name="to" defaultValue={sp.to ?? ""} />
+                <button className="btn sm" type="submit">صفي</button>
+              </form>
+            </HF>
+            <th>الاسم الكامل</th><th>الهاتف</th>
+            <HF label="الحالة" active={st ? STATUS_GROUPS[st]?.label.split(" (")[0] ?? STATUS_L[st] : undefined}
+              options={[all("st"), ...Object.entries(STATUS_GROUPS).map(([k, g]) => [link({ st: k }), g.label, st === k] as [string, string, boolean]),
+                ...Object.entries(STATUS_L).map(([k, l]) => [link({ st: k }), `· ${l}`, st === k] as [string, string, boolean])]} />
+            <th>العنوان</th>
+            <HF label="الولاية" active={sp.wilaya} options={[all("wilaya"), ...wilayas.map((w) => [link({ wilaya: w }), w, sp.wilaya === w] as [string, string, boolean])]} />
+            <th>البلدية</th><th>نوع التوصيل</th>
+            <HF label="المنتج" active={sp.prod === "none" ? "ما تربطش" : products.find((p) => p.id === sp.prod)?.name}
+              options={[all("prod"), [link({ prod: "none" }), "منتج ما تربطش", sp.prod === "none"],
+                ...products.map((p) => [link({ prod: p.id }), p.name, sp.prod === p.id] as [string, string, boolean])]} />
+            <th>الكمية</th><th>سعر المنتج</th><th>سعر التوصيل</th>
+            <th>التخفيض</th><th>السعر الكلي</th><th>ملاحظات</th><th>التفاصيل</th><th>أعمدة أخرى</th>
+            <HF label="التأكيد بواسطة" active={confirmers.find((p) => p.id === sp.conf)?.name}
+              options={[all("conf"), ...confirmers.map((p) => [link({ conf: p.id }), p.name, sp.conf === p.id] as [string, string, boolean])]} />
+            <th>الفرع والتتبع</th>
           </tr></thead>
           <tbody>
             {shown.length ? shown.map((o) => {
